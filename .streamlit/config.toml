@@ -1,0 +1,7 @@
+[server]
+runOnSave = true
+fileWatcherType = "auto"
+
+[browser]
+serverAddress = "localhost"
+gatherUsageStats = false
