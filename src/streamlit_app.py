@@ -30,18 +30,18 @@ async def main() -> None:
         menu_items={},
     )
 
-    # Hide the streamlit upper-right chrome
-    st.html(
-        """
-        <style>
-        [data-testid="stStatusWidget"] {
-                visibility: hidden;
-                height: 0%;
-                position: fixed;
-            }
-        </style>
-        """,
-    )
+    # # Hide the streamlit upper-right chrome
+    # st.html(
+    #     """
+    #     <style>
+    #     [data-testid="stStatusWidget"] {
+    #             visibility: hidden;
+    #             height: 0%;
+    #             position: fixed;
+    #         }
+    #     </style>
+    #     """,
+    # )
     if st.get_option("client.toolbarMode") != "minimal":
         st.set_option("client.toolbarMode", "minimal")
         await asyncio.sleep(0.1)

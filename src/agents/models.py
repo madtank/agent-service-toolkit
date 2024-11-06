@@ -19,7 +19,7 @@ models["bedrock-haiku"] = ChatBedrock(
 )
 
 models["ollama"] = ChatOllama(
-    model="llama3.2",
+    model="qwq",
     temperature=0.7,
     streaming=True  # Enable streaming
 )
