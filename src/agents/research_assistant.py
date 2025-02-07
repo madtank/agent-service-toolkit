@@ -16,7 +16,8 @@ from agents.tools import (
     calculator, file_list, file_read,
     file_write, file_create_directory,
     file_move, file_search_files,
-    file_get_file_info, file_list_allowed_directories
+    file_get_file_info, file_list_allowed_directories,
+    shell_command
 )
 from core import get_model, settings
 
@@ -36,7 +37,8 @@ tools = [
     web_search, calculator, file_list, file_read,
     file_write, file_create_directory,
     file_move, file_search_files,
-    file_get_file_info, file_list_allowed_directories
+    file_get_file_info, file_list_allowed_directories,
+    shell_command
 ]
 
 # Add weather tool if API key is set

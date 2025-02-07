@@ -9,18 +9,30 @@ ENV UV_COMPILE_BYTECODE=1
 ARG MCP_ENABLED=false
 # Runtime environment variable that can be overridden
 ENV MCP_ENABLED=${MCP_ENABLED}
+ENV DEBIAN_FRONTEND=noninteractive
 
 # Install Node.js and MCP dependencies if enabled
 RUN if [ "$MCP_ENABLED" = "true" ] ; then \
     apt-get update && \
-    apt-get install -y curl build-essential && \
+    apt-get install -y --no-install-recommends curl build-essential && \
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get update && \
-    apt-get install -y nodejs && \
+    apt-get install -y --no-install-recommends nodejs && \
     corepack enable && \
-    npm install -g @modelcontextprotocol/server-filesystem && \
+    mkdir -p /usr/local/lib/mcp-tools && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* ; \
+    fi
+
+# Copy MCP shell server files
+COPY src/agents/tools/mcp/servers/mcp-shell-main /usr/local/lib/mcp-tools/mcp-shell
+
+# Install MCP shell server if enabled
+RUN if [ "$MCP_ENABLED" = "true" ] ; then \
+    cd /usr/local/lib/mcp-tools/mcp-shell && \
+    npm install && \
+    npm run build && \
+    npm link ; \
     fi
 
 # Set default AGENT_HOME only if MCP is enabled and AGENT_HOME not provided

@@ -7,6 +7,7 @@ import numexpr
 from langchain_core.tools import BaseTool, tool
 
 from agents.tools.mcp.adapters.file_adapters import FileServer
+from agents.tools.mcp.adapters.shell_adapter import ShellServer
 
 def calculator_func(expression: str) -> str:
     """Calculates a math expression using numexpr.
@@ -70,6 +71,15 @@ def file_list_allowed_directories_func() -> Any:
     file_server = FileServer()
     return asyncio.run(file_server.list_allowed_directories())
 
+def shell_command_func(command: str) -> str:
+    """Executes a shell command and returns the output.
+    
+    Be cautious with shell commands as they can be dangerous.
+    Only use trusted and safe commands.
+    """
+    shell_server = ShellServer()
+    return asyncio.run(shell_server.execute_command(command))
+
 # Create tools using the langchain_core tool decorator
 
 calculator: BaseTool = tool(calculator_func)
@@ -108,8 +118,13 @@ file_list_allowed_directories: BaseTool = tool(file_list_allowed_directories_fun
 file_list_allowed_directories.name = "ListAllowedDirectories"
 file_list_allowed_directories.description = "Lists allowed directories for file operations."
 
+shell_command: BaseTool = tool(shell_command_func)
+shell_command.name = "ShellCommand"
+shell_command.description = "Executes a shell command and returns the output."
+
 __all__ = [
     "calculator", "file_list", "file_read", "file_write",
     "file_create_directory", "file_move", "file_search_files",
-    "file_get_file_info", "file_list_allowed_directories"
+    "file_get_file_info", "file_list_allowed_directories",
+    "shell_command"
 ]

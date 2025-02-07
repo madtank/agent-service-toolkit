@@ -8,6 +8,7 @@ from agents.tools.mcp.mcp_tools import (
     file_search_files,
     file_get_file_info,
     file_list_allowed_directories,
+    shell_command,
 )
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "file_search_files",
     "file_get_file_info",
     "file_list_allowed_directories",
+    "shell_command",
 ]
