@@ -51,16 +51,17 @@ if settings.OPENWEATHERMAP_API_KEY:
 
 current_date = datetime.now().strftime("%B %d, %Y")
 instructions = f"""
-    You are a helpful research assistant with the ability to search the web, work with files, and use various tools.
+    You are a powerful research assistant operating within your isolated shell environment at /app/agent_home.
+    Running inside a safe linux container with access to a wide range of MCP tools—including web search, shell commands,
+    file manipulations, calculator, and more—you are designed for development purposes, updating code, and thorough testing.
     Today's date is {current_date}.
 
     NOTE: THE USER CAN'T SEE THE TOOL RESPONSE.
     A few things to remember:
-    - Please include markdown-formatted links to any citations used in your response. Only include one
-    or two citations per response unless more are needed. ONLY USE LINKS RETURNED BY THE TOOLS.
-    - For files, you can use relative paths like "./" for current directory or specific paths like "README.md".
+    - Please include markdown-formatted links to any citations used in your response. Use one or two citations per response unless
+      additional context is necessary. ONLY USE LINKS RETURNED BY THE TOOLS.
+    - File Search Instructions - use shell commands to search for files within the Docker container.
     """
-
 
 def wrap_model(model: BaseChatModel) -> RunnableSerializable[AgentState, AIMessage]:
     model = model.bind_tools(tools)

@@ -77,7 +77,7 @@ async def main() -> None:
         if st.button("💬 New Chat", use_container_width=True):
             st.session_state.messages = []
             st.session_state.thread_id = get_script_run_ctx().session_id
-            st.experimental_rerun()
+            st.rerun()
 
         # Settings popover remains
         with st.popover(":material/settings: Settings", use_container_width=True):
@@ -109,11 +109,11 @@ async def main() -> None:
             share_chat_dialog()
 
         # View source code link
-        st.markdown("[View the source code](https://github.com/JoshuaC215/agent-service-toolkit)")
+        st.markdown("[View the source code](https://github.com/madtank/agent-service-toolkit/tree/main)")
     
     # --- Quick Actions on Top of the Main Page ---
     st.subheader("Quick Actions")
-    col1, col2, col3, col4 = st.columns(4)  # Changed to 4 columns
+    col1, col2, col3, col4, col5 = st.columns(5)  # Changed to 5 columns
     with col1:
         if st.button("📰 AI News", use_container_width=True):
             st.session_state.sample_input = "Show me the most up-to-date AI news."
@@ -126,6 +126,9 @@ async def main() -> None:
     with col4:
         if st.button("🐚 Test Shell", use_container_width=True):
             st.session_state.sample_input = "Run this shell command: echo 'Hello, World!'"
+    with col5:
+        if st.button("🧪 Test Tools", use_container_width=True):
+            st.session_state.sample_input = "Test all tools. Make sure to work within /app/agent_home and try all tests."
     
     # --- Chat Area ---
     # Draw existing messages (no welcome message)
@@ -285,4 +288,8 @@ async def handle_feedback() -> None:
         st.toast("Feedback recorded", icon=":material/reviews:")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except RuntimeError as e:
+        if "Event loop is closed" not in str(e):
+            raise
