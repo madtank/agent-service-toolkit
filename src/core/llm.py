@@ -93,10 +93,17 @@ def get_model(model_name: AllModelEnum, /) -> ModelT:
     if model_name in OllamaModelName:
         if settings.OLLAMA_BASE_URL:
             chat_ollama = ChatOllama(
-                model=settings.OLLAMA_MODEL, temperature=0.5, base_url=settings.OLLAMA_BASE_URL
+                model=settings.OLLAMA_MODEL, 
+                temperature=0.5, 
+                base_url=settings.OLLAMA_BASE_URL,
+                streaming=True,
             )
         else:
-            chat_ollama = ChatOllama(model=settings.OLLAMA_MODEL, temperature=0.5)
+            chat_ollama = ChatOllama(
+                model=settings.OLLAMA_MODEL, 
+                temperature=0.5,
+                streaming=True,
+            )
         return chat_ollama
     if model_name in FakeModelName:
         return FakeListChatModel(responses=["This is a test response from the fake model."])

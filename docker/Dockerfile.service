@@ -25,16 +25,15 @@ RUN if [ "$MCP_ENABLED" = "true" ] ; then \
     rm -rf /var/lib/apt/lists/* ; \
     fi
 
-# Copy MCP shell server files
-COPY src/agents/tools/mcp/servers/mcp-shell-main /usr/local/lib/mcp-tools/mcp-shell
-
+# The following lines were causing the error - removing since the directory doesn't exist
+# COPY src/agents/tools/mcp/servers/mcp-shell-main /usr/local/lib/mcp-tools/mcp-shell
 # Install MCP shell server if enabled
-RUN if [ "$MCP_ENABLED" = "true" ] ; then \
-    cd /usr/local/lib/mcp-tools/mcp-shell && \
-    npm install && \
-    npm run build && \
-    npm link ; \
-    fi
+# RUN if [ "$MCP_ENABLED" = "true" ] ; then \
+#    cd /usr/local/lib/mcp-tools/mcp-shell && \
+#    npm install && \
+#    npm run build && \
+#    npm link ; \
+#    fi
 
 # Set default AGENT_HOME only if MCP is enabled and AGENT_HOME not provided
 RUN if [ "$MCP_ENABLED" = "true" ] ; then \
