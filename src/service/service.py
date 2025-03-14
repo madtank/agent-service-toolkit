@@ -62,7 +62,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             await saver.setup()
             agents = get_all_agent_info()
             for a in agents:
-                agent = get_agent(a.key)
+                agent = await get_agent(a.key)  # Await the async get_agent call
                 agent.checkpointer = saver
             yield
     except Exception as e:
@@ -141,12 +141,7 @@ async def invoke(user_input: UserInput, agent_id: str = DEFAULT_AGENT) -> ChatMe
     Use thread_id to persist and continue a multi-turn conversation. run_id kwarg
     is also attached to messages for recording feedback.
     """
-    # NOTE: Currently this only returns the last message or interrupt.
-    # In the case of an agent outputting multiple AIMessages (such as the background step
-    # in interrupt-agent, or a tool step in research-assistant), it's omitted. Arguably,
-    # you'd want to include it. You could update the API to return a list of ChatMessages
-    # in that case.
-    agent: CompiledStateGraph = get_agent(agent_id)
+    agent: CompiledStateGraph = await get_agent(agent_id)  # Add await here
     kwargs, run_id = await _handle_input(user_input, agent)
     try:
         response_events = await agent.ainvoke(**kwargs, stream_mode=["updates", "values"])
@@ -178,7 +173,7 @@ async def message_generator(
 
     This is the workhorse method for the /stream endpoint.
     """
-    agent: CompiledStateGraph = get_agent(agent_id)
+    agent: CompiledStateGraph = await get_agent(agent_id)  # Add await here
     kwargs, run_id = await _handle_input(user_input, agent)
 
     # Process streamed events from the graph and yield messages over the SSE stream.
@@ -309,12 +304,12 @@ async def feedback(feedback: Feedback) -> FeedbackResponse:
 
 
 @router.post("/history")
-def history(input: ChatHistoryInput) -> ChatHistory:
+async def history(input: ChatHistoryInput) -> ChatHistory:  # Make async
     """
     Get chat history.
     """
     # TODO: Hard-coding DEFAULT_AGENT here is wonky
-    agent: CompiledStateGraph = get_agent(DEFAULT_AGENT)
+    agent: CompiledStateGraph = await get_agent(DEFAULT_AGENT)  # Add await here
     try:
         state_snapshot = agent.get_state(
             config=RunnableConfig(
