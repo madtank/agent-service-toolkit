@@ -40,14 +40,9 @@ async def get_tools():
     if _mcp_client is None:
         _mcp_client = MultiServerMCPClient(
             {
-                "math": {
-                    "command": "python",
-                    "args": [os.path.join(os.path.dirname(__file__), "tools/math_server.py")],
-                    "transport": "stdio",
-                },
-                "weather": {
-                    "command": "python",
-                    "args": [os.path.join(os.path.dirname(__file__), "tools/weather_server.py")],
+                "memory": {
+                    "command": "npx",
+                    "args": ["-y", "@modelcontextprotocol/server-memory"],
                     "transport": "stdio",
                 }
             }

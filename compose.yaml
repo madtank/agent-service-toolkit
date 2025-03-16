@@ -7,9 +7,6 @@ services:
       - "8080:8080"
     env_file:
       - .env
-    depends_on:
-      - memory
-      - sequentialthinking
     develop:
       watch:
         - path: src/agents/
@@ -49,19 +46,3 @@ services:
         - path: src/streamlit_app.py
           action: sync+restart
           target: /app/streamlit_app.py
-
-  memory:
-    image: mcp/memory-server
-    ports:
-      - "5001:5001"
-    environment:
-      - PORT=5001
-      - NODE_ENV=production
-
-  sequentialthinking:
-    image: mcp/sequentialthinking-server
-    ports:
-      - "5002:5002"
-    environment:
-      - PORT=5002
-      - NODE_ENV=production
