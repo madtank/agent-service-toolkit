@@ -175,19 +175,19 @@ class AgentClient:
             try:
                 parsed = json.loads(data)
             except Exception as e:
-                raise Exception(f"Error JSON parsing message from server: {e}")
+                raise AgentClientError(f"Error JSON parsing message from server: {e}")
             match parsed["type"]:
                 case "message":
                     # Convert the JSON formatted message to an AnyMessage
                     try:
                         return ChatMessage.model_validate(parsed["content"])
                     except Exception as e:
-                        raise Exception(f"Server returned invalid message: {e}")
+                        raise AgentClientError(f"Server returned invalid message: {e}")
                 case "token":
                     # Yield the str token directly
                     return parsed["content"]
                 case "error":
-                    raise Exception(parsed["content"])
+                    raise AgentClientError(parsed["content"])
         return None
 
     def stream(
@@ -290,10 +290,14 @@ class AgentClient:
                     response.raise_for_status()
                     async for line in response.aiter_lines():
                         if line.strip():
-                            parsed = self._parse_stream_line(line)
-                            if parsed is None:
-                                break
-                            yield parsed
+                            try:
+                                parsed = self._parse_stream_line(line)
+                                if parsed is None:
+                                    break
+                                yield parsed
+                            except Exception as e:
+                                # Convert any exception during parsing to AgentClientError
+                                raise AgentClientError(f"Error processing stream: {e}")
             except httpx.HTTPError as e:
                 raise AgentClientError(f"Error: {e}")
 

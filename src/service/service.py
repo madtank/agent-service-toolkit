@@ -175,7 +175,11 @@ async def message_generator(
     """
     agent: CompiledStateGraph = await get_agent(agent_id)  # Add await here
     kwargs, run_id = await _handle_input(user_input, agent)
-
+    
+    # Keep track of final AI message to avoid duplication
+    final_ai_message_sent = False
+    is_last_update = False
+    
     # Process streamed events from the graph and yield messages over the SSE stream.
     async for stream_event in agent.astream(
         **kwargs, stream_mode=["updates", "messages", "custom"]
@@ -183,6 +187,13 @@ async def message_generator(
         if not isinstance(stream_event, tuple):
             continue
         stream_mode, event = stream_event
+        
+        # Check if this is likely the last update
+        if stream_mode == "updates":
+            # Check if this is the last message in the sequence
+            if event and isinstance(event, dict) and "messages" in list(event.values())[0]:
+                is_last_update = True
+                
         new_messages = []
         if stream_mode == "updates":
             for node, updates in event.items():
@@ -207,27 +218,48 @@ async def message_generator(
                     msg = ToolMessage(
                         content=update_messages[0].content,
                         name=node,
-                        tool_call_id="",
+                        tool_call_id="",  # Assign a proper ID here
                     )
                     update_messages = [msg]
                 new_messages.extend(update_messages)
-
         if stream_mode == "custom":
             new_messages = [event]
-
+            
         for message in new_messages:
             try:
                 chat_message = langchain_to_chat_message(message)
                 chat_message.run_id = str(run_id)
+                
+                # Skip final AI message if we're using token streaming and it's the last update
+                if (user_input.stream_tokens and 
+                    is_last_update and 
+                    isinstance(message, AIMessage) and 
+                    not message.tool_calls and
+                    not final_ai_message_sent):
+                    # Mark that we're skipping the final message because we've streamed it
+                    final_ai_message_sent = True
+                    # Add skip_stream tag to this message
+                    if not hasattr(message, "metadata"):
+                        message.metadata = {}
+                    if "tags" not in message.metadata:
+                        message.metadata["tags"] = []
+                    message.metadata["tags"].append("skip_stream")
             except Exception as e:
                 logger.error(f"Error parsing message: {e}")
                 yield f"data: {json.dumps({'type': 'error', 'content': 'Unexpected error'})}\n\n"
                 continue
+                
             # LangGraph re-sends the input message, which feels weird, so drop it
             if chat_message.type == "human" and chat_message.content == user_input.message:
                 continue
+                
+            # If it's a tool message with empty tool_call_id, set a temporary ID
+            if chat_message.type == "tool" and not chat_message.tool_call_id:
+                chat_message.tool_call_id = f"temp_tool_{uuid4()}"
+                logger.warning(f"Found empty tool_call_id, assigned temporary ID: {chat_message.tool_call_id}")
+                
             yield f"data: {json.dumps({'type': 'message', 'content': chat_message.model_dump()})}\n\n"
-
+            
         if stream_mode == "messages":
             if not user_input.stream_tokens:
                 continue
@@ -244,6 +276,7 @@ async def message_generator(
                 # that the model is asking for a tool to be invoked.
                 # So we only print non-empty content.
                 yield f"data: {json.dumps({'type': 'token', 'content': convert_message_content_to_string(content)})}\n\n"
+                
     yield "data: [DONE]\n\n"
 
 

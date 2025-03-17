@@ -1,6 +1,7 @@
 import asyncio
 import os
 import urllib.parse
+import uuid
 from collections.abc import AsyncGenerator
 
 import streamlit as st
@@ -12,20 +13,8 @@ from client import AgentClient, AgentClientError
 from schema import ChatHistory, ChatMessage
 from schema.task_data import TaskData, TaskDataStatus
 
-# A Streamlit app for interacting with the langgraph agent via a simple chat interface.
-# The app has three main functions which are all run async:
-
-# - main() - sets up the streamlit app and high level structure
-# - draw_messages() - draws a set of chat messages - either replaying existing messages
-#   or streaming new ones.
-# - handle_feedback() - Draws a feedback widget and records feedback from the user.
-
-# The app heavily uses AgentClient to interact with the agent's FastAPI endpoints.
-
-
 APP_TITLE = "Agent Service Toolkit"
 APP_ICON = "🧰"
-
 
 async def main() -> None:
     st.set_page_config(
@@ -34,7 +23,7 @@ async def main() -> None:
         menu_items={},
     )
 
-    # Hide the streamlit upper-right chrome
+    # Hide the Streamlit upper-right chrome
     st.html(
         """
         <style>
@@ -44,7 +33,7 @@ async def main() -> None:
                 position: fixed;
             }
         </style>
-        """,
+        """
     )
     if st.get_option("client.toolbarMode") != "minimal":
         st.set_option("client.toolbarMode", "minimal")
@@ -67,7 +56,16 @@ async def main() -> None:
             st.stop()
     agent_client: AgentClient = st.session_state.agent_client
 
-    if "thread_id" not in st.session_state:
+    # Check for a new chat action
+    if st.session_state.get("start_new_chat", False):
+        # Generate a completely new UUID for the thread ID to ensure no context is preserved
+        thread_id = str(uuid.uuid4())
+        st.session_state.messages = []
+        st.session_state.thread_id = thread_id
+        st.session_state.start_new_chat = False
+        # Clear any URL parameters
+        st.query_params.clear()
+    elif "thread_id" not in st.session_state:
         thread_id = st.query_params.get("thread_id")
         if not thread_id:
             thread_id = get_script_run_ctx().session_id
@@ -81,11 +79,16 @@ async def main() -> None:
         st.session_state.messages = messages
         st.session_state.thread_id = thread_id
 
-    # Config options
+    # --- Sidebar Configuration ---
     with st.sidebar:
         st.header(f"{APP_ICON} {APP_TITLE}")
-        ""
-        "Full toolkit for running an AI agent service built with LangGraph, FastAPI and Streamlit"
+
+        # New Chat button at the top of the sidebar
+        if st.button("💬 New Chat", use_container_width=True):
+            st.session_state.start_new_chat = True
+            st.rerun()
+
+        # Settings popover remains
         with st.popover(":material/settings: Settings", use_container_width=True):
             model_idx = agent_client.info.models.index(agent_client.info.default_model)
             model = st.selectbox("LLM to use", options=agent_client.info.models, index=model_idx)
@@ -98,31 +101,13 @@ async def main() -> None:
             )
             use_streaming = st.toggle("Stream results", value=True)
 
-        @st.dialog("Architecture")
-        def architecture_dialog() -> None:
-            st.image(
-                "https://github.com/JoshuaC215/agent-service-toolkit/blob/main/media/agent_architecture.png?raw=true"
-            )
-            "[View full size on Github](https://github.com/JoshuaC215/agent-service-toolkit/blob/main/media/agent_architecture.png)"
-            st.caption(
-                "App hosted on [Streamlit Cloud](https://share.streamlit.io/) with FastAPI service running in [Azure](https://learn.microsoft.com/en-us/azure/app-service/)"
-            )
-
-        if st.button(":material/schema: Architecture", use_container_width=True):
-            architecture_dialog()
-
-        with st.popover(":material/policy: Privacy", use_container_width=True):
-            st.write(
-                "Prompts, responses and feedback in this app are anonymously recorded and saved to LangSmith for product evaluation and improvement purposes only."
-            )
-
+        # Share/resume chat dialog
         @st.dialog("Share/resume chat")
         def share_chat_dialog() -> None:
             session = st.runtime.get_instance()._session_mgr.list_active_sessions()[0]
             st_base_url = urllib.parse.urlunparse(
                 [session.client.request.protocol, session.client.request.host, "", "", "", ""]
             )
-            # if it's not localhost, switch to https by default
             if not st_base_url.startswith("https") and "localhost" not in st_base_url:
                 st_base_url = st_base_url.replace("http", "https")
             chat_url = f"{st_base_url}?thread_id={st.session_state.thread_id}"
@@ -132,36 +117,44 @@ async def main() -> None:
         if st.button(":material/upload: Share/resume chat", use_container_width=True):
             share_chat_dialog()
 
-        "[View the source code](https://github.com/JoshuaC215/agent-service-toolkit)"
-        st.caption(
-            "Made with :material/favorite: by [Joshua](https://www.linkedin.com/in/joshua-k-carroll/) in Oakland"
-        )
+        # View source code link
+        st.markdown("[View the source code](https://github.com/madtank/agent-service-toolkit/tree/main)")
+    
+    # --- Quick Actions on Top of the Main Page ---
+    st.subheader("Quick Actions")
+    col1, col2 = st.columns(2)
+    
+    # Only show buttons if we're not currently processing a sample input
+    if not st.session_state.get("sample_input"):
+        with col1:
+            if st.button("🛠️ List Available Tools", key="list_tools_btn", use_container_width=True):
+                st.session_state.sample_input = "What tools do you have available?"
+                st.rerun()
+        with col2:
+            if st.button("📝 Check Previous Conversation", key="check_history_btn", use_container_width=True):
+                st.session_state.sample_input = "What have we discussed before? Please check your memory but don't list your tools again."
+                st.rerun()
 
-    # Draw existing messages
+    # --- Chat Area ---
+    # Draw existing messages (no welcome message)
     messages: list[ChatMessage] = st.session_state.messages
 
-    if len(messages) == 0:
-        match agent_client.agent:
-            case "chatbot":
-                WELCOME = "Hello! I'm a simple chatbot. Ask me anything!"
-            case "interrupt-agent":
-                WELCOME = "Hello! I'm an interrupt agent. Tell me your birthday and I will predict your personality!"
-            case "research-assistant":
-                WELCOME = "Hello! I'm an AI-powered research assistant with web search and a calculator. Ask me anything!"
-            case _:
-                WELCOME = "Hello! I'm an AI agent. Ask me anything!"
-        with st.chat_message("ai"):
-            st.write(WELCOME)
-
-    # draw_messages() expects an async iterator over messages
     async def amessage_iter() -> AsyncGenerator[ChatMessage, None]:
         for m in messages:
             yield m
 
     await draw_messages(amessage_iter())
 
-    # Generate new message if the user provided new input
-    if user_input := st.chat_input():
+    # ---- Retrieve user input ----
+    # Use sample query if set; otherwise use manual input.
+    if st.session_state.get("sample_input"):
+        user_input = st.session_state.sample_input
+        st.session_state.sample_input = ""  # Clear after reading.
+    else:
+        user_input = st.chat_input()
+
+    # Generate new message if the user provided input
+    if user_input:
         messages.append(ChatMessage(type="human", content=user_input))
         st.chat_message("human").write(user_input)
         try:
@@ -190,135 +183,182 @@ async def main() -> None:
         with st.session_state.last_message:
             await handle_feedback()
 
-
 async def draw_messages(
     messages_agen: AsyncGenerator[ChatMessage | str, None],
     is_new: bool = False,
 ) -> None:
-    """
-    Draws a set of chat messages - either replaying existing messages
-    or streaming new ones.
-
-    This function has additional logic to handle streaming tokens and tool calls.
-    - Use a placeholder container to render streaming tokens as they arrive.
-    - Use a status container to render tool calls. Track the tool inputs and outputs
-      and update the status container accordingly.
-
-    The function also needs to track the last message container in session state
-    since later messages can draw to the same container. This is also used for
-    drawing the feedback widget in the latest chat message.
-
-    Args:
-        messages_aiter: An async iterator over messages to draw.
-        is_new: Whether the messages are new or not.
-    """
-
-    # Keep track of the last message container
     last_message_type = None
     st.session_state.last_message = None
-
-    # Placeholder for intermediate streaming tokens
     streaming_content = ""
     streaming_placeholder = None
-
-    # Iterate over the messages and draw them
+    # Track whether a final AI message was already appended
+    final_message_appended = False
+    # Keep track of seen tool calls and responses for proper history building
+    tool_calls_seen = []
+    tool_responses_seen = []
+    
     while msg := await anext(messages_agen, None):
-        # str message represents an intermediate token being streamed
         if isinstance(msg, str):
-            # If placeholder is empty, this is the first token of a new message
-            # being streamed. We need to do setup.
             if not streaming_placeholder:
                 if last_message_type != "ai":
                     last_message_type = "ai"
                     st.session_state.last_message = st.chat_message("ai")
                 with st.session_state.last_message:
                     streaming_placeholder = st.empty()
-
             streaming_content += msg
             streaming_placeholder.write(streaming_content)
             continue
+            
         if not isinstance(msg, ChatMessage):
             st.error(f"Unexpected message type: {type(msg)}")
             st.write(msg)
             st.stop()
-
+            
         match msg.type:
-            # A message from the user, the easiest case
             case "human":
                 last_message_type = "human"
                 st.chat_message("human").write(msg.content)
-
-            # A message from the agent is the most complex case, since we need to
-            # handle streaming tokens and tool calls.
+                
             case "ai":
-                # If we're rendering new messages, store the message in session state
-                if is_new:
-                    st.session_state.messages.append(msg)
-
-                # If the last message type was not AI, create a new chat message
+                # Add message to history if it's new
+                if is_new and (msg.content or msg.tool_calls):
+                    # Only append if it's not a duplicate of what we already have
+                    duplicate = False
+                    for existing in st.session_state.messages:
+                        if (existing.type == "ai" and 
+                            ((msg.content and existing.content == msg.content) or 
+                             (msg.tool_calls and existing.tool_calls == msg.tool_calls))):
+                            duplicate = True
+                            break
+                    
+                    if not duplicate:
+                        # Mark that we've appended an AI message
+                        st.session_state.messages.append(msg)
+                        if msg.content:
+                            final_message_appended = True
+                        
                 if last_message_type != "ai":
                     last_message_type = "ai"
                     st.session_state.last_message = st.chat_message("ai")
-
+                    
                 with st.session_state.last_message:
-                    # If the message has content, write it out.
-                    # Reset the streaming variables to prepare for the next message.
                     if msg.content:
                         if streaming_placeholder:
-                            streaming_placeholder.write(msg.content)
+                            # If the streaming content exactly matches the message content,
+                            # don't write it again to avoid flashing
+                            if streaming_content.strip() != msg.content.strip():
+                                streaming_placeholder.write(msg.content)
                             streaming_content = ""
                             streaming_placeholder = None
                         else:
                             st.write(msg.content)
-
+                            
                     if msg.tool_calls:
-                        # Create a status container for each tool call and store the
-                        # status container by ID to ensure results are mapped to the
-                        # correct status container.
+                        # Save tool calls we've seen to track them
+                        for tool_call in msg.tool_calls:
+                            if tool_call not in tool_calls_seen:
+                                tool_calls_seen.append(tool_call)
+                                
                         call_results = {}
                         for tool_call in msg.tool_calls:
                             status = st.status(
-                                f"""Tool Call: {tool_call["name"]}""",
+                                f"Tool Call: {tool_call['name']}",
                                 state="running" if is_new else "complete",
                             )
                             call_results[tool_call["id"]] = status
                             status.write("Input:")
                             status.write(tool_call["args"])
-
-                        # Expect one ToolMessage for each tool call.
+                            
                         for _ in range(len(call_results)):
-                            tool_result: ChatMessage = await anext(messages_agen)
-
-                            if tool_result.type != "tool":
-                                st.error(f"Unexpected ChatMessage type: {tool_result.type}")
-                                st.write(tool_result)
-                                st.stop()
-
-                            # Record the message if it's new, and update the correct
-                            # status container with the result
-                            if is_new:
-                                st.session_state.messages.append(tool_result)
-                            if tool_result.tool_call_id:
-                                status = call_results[tool_result.tool_call_id]
-                            status.write("Output:")
-                            status.write(tool_result.content)
-                            status.update(state="complete")
-
+                            try:
+                                tool_result: ChatMessage = await anext(messages_agen)
+                                if tool_result.type != "tool":
+                                    st.error(f"Unexpected ChatMessage type: {tool_result.type}")
+                                    st.write(tool_result)
+                                    st.stop()
+                                    
+                                # Track tool responses for history
+                                if tool_result not in tool_responses_seen:
+                                    tool_responses_seen.append(tool_result)
+                                    
+                                # Add tool response to history if it's new
+                                if is_new:
+                                    # Only append if it's not a duplicate
+                                    duplicate = False
+                                    for existing in st.session_state.messages:
+                                        if (existing.type == "tool" and 
+                                            existing.tool_call_id == tool_result.tool_call_id and
+                                            existing.content == tool_result.content):
+                                            duplicate = True
+                                            break
+                                    
+                                    if not duplicate:
+                                        st.session_state.messages.append(tool_result)
+                                        
+                                status = call_results.get(tool_result.tool_call_id)
+                                # If we can't find the matching tool call, use the first available status
+                                if not status and call_results:
+                                    status = list(call_results.values())[0]
+                                    st.warning(f"Tool result with id {tool_result.tool_call_id} couldn't be matched to a tool call")
+                                    
+                                if status:
+                                    status.write("Output:")
+                                    status.write(tool_result.content)
+                                    status.update(state="complete")
+                                else:
+                                    st.error(f"Couldn't find a matching tool call for result: {tool_result.tool_call_id}")
+                                    st.write(tool_result.content)
+                            except StopAsyncIteration:
+                                # If we run out of messages but still expecting tool responses,
+                                # that's an error in the stream
+                                st.error("Stream ended unexpectedly while waiting for tool responses")
+                                break
+                    
+            case "tool":
+                # We handle tool messages within the AI message processing
+                # But sometimes tool messages might arrive separately, so handle that case:
+                if is_new:
+                    # Only append if it's not already in our tool_responses_seen list
+                    if msg not in tool_responses_seen:
+                        tool_responses_seen.append(msg)
+                        
+                        # And check it's not a duplicate in history
+                        duplicate = False
+                        for existing in st.session_state.messages:
+                            if (existing.type == "tool" and 
+                                existing.tool_call_id == msg.tool_call_id and
+                                existing.content == msg.content):
+                                duplicate = True
+                                break
+                        
+                        if not duplicate:
+                            st.session_state.messages.append(msg)
+                            
+                # If we get a tool message without seeing the corresponding AI message first,
+                # we need to display it standalone
+                if last_message_type != "ai":
+                    st.error(f"Received tool response without a preceding AI message: {msg.tool_call_id}")
+                    st.write(msg.content)
+                    
             case "custom":
-                # CustomData example used by the bg-task-agent
-                # See:
-                # - src/agents/utils.py CustomData
-                # - src/agents/bg_task_agent/task.py
                 try:
                     task_data: TaskData = TaskData.model_validate(msg.custom_data)
                 except ValidationError:
                     st.error("Unexpected CustomData message received from agent")
                     st.write(msg.custom_data)
                     st.stop()
-
                 if is_new:
-                    st.session_state.messages.append(msg)
-
+                    # Check for duplicates
+                    duplicate = False
+                    for existing in st.session_state.messages:
+                        if (existing.type == "custom" and 
+                            existing.custom_data == msg.custom_data):
+                            duplicate = True
+                            break
+                            
+                    if not duplicate:
+                        st.session_state.messages.append(msg)
+                        
                 if last_message_type != "task":
                     last_message_type = "task"
                     st.session_state.last_message = st.chat_message(
@@ -326,31 +366,39 @@ async def draw_messages(
                     )
                     with st.session_state.last_message:
                         status = TaskDataStatus()
-
                 status.add_and_draw_task_data(task_data)
-
-            # In case of an unexpected message type, log an error and stop
+                
             case _:
                 st.error(f"Unexpected ChatMessage type: {msg.type}")
                 st.write(msg)
                 st.stop()
+    
+    # If we've been streaming tokens but never got a final AI message with content,
+    # create one from the streamed content when we see [DONE]
+    if is_new and streaming_content and not final_message_appended:
+        final_msg = ChatMessage(type="ai", content=streaming_content)
+        
+        # Only add if it's not a duplicate
+        duplicate = False
+        for existing in st.session_state.messages:
+            if (existing.type == "ai" and existing.content == streaming_content):
+                duplicate = True
+                break
+                
+        if not duplicate:
+            st.session_state.messages.append(final_msg)
+            
+        if streaming_placeholder:
+            streaming_placeholder.write(streaming_content)
 
 
 async def handle_feedback() -> None:
-    """Draws a feedback widget and records feedback from the user."""
-
-    # Keep track of last feedback sent to avoid sending duplicates
     if "last_feedback" not in st.session_state:
         st.session_state.last_feedback = (None, None)
-
     latest_run_id = st.session_state.messages[-1].run_id
     feedback = st.feedback("stars", key=latest_run_id)
-
-    # If the feedback value or run ID has changed, send a new feedback record
     if feedback is not None and (latest_run_id, feedback) != st.session_state.last_feedback:
-        # Normalize the feedback value (an index) to a score between 0 and 1
         normalized_score = (feedback + 1) / 5.0
-
         agent_client: AgentClient = st.session_state.agent_client
         try:
             await agent_client.acreate_feedback(
@@ -365,6 +413,9 @@ async def handle_feedback() -> None:
         st.session_state.last_feedback = (latest_run_id, feedback)
         st.toast("Feedback recorded", icon=":material/reviews:")
 
-
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except RuntimeError as e:
+        if "Event loop is closed" not in str(e):
+            raise
