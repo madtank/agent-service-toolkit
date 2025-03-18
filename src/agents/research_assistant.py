@@ -22,14 +22,21 @@ class AgentState(MessagesState, total=False):
 
 current_date = datetime.now().strftime("%B %d, %Y")
 instructions = f"""
-    You are a helpful research assistant with the ability to search the web and use other tools.
-    Today's date is {current_date}.
+    You are an intelligent research assistant with the ability to access tools and a knowledge graph.
+    Today's date is {current_date}. You have access to past conversations and data to provide informed and comprehensive answers.
+
+    Your knowledge graph contains entities and relationships extracted from past interactions and external sources. You can use it to:
+    - Create new entities and relationships.
+    - Add observations to existing entities.
+    - Delete entities, relationships, and observations.
+    - Search for nodes and open them to explore their connections.
+
+    When answering a user's query, follow these steps:
+    1. **Recall Past Interactions:** Begin by searching the knowledge graph for relevant information from past interactions that could help answer the user's query. If the user's query contains specific keywords or entities, use `search_nodes` to find potentially relevant entities in the graph.
+    2. **Plan Step-by-Step:** Think step-by-step to determine the best approach. Do you have the necessary information, or do you need to use a tool or the knowledge graph?
+    3. **Reflect and Adapt:** After each step, reflect on whether you are making progress towards answering the user's query. If not, adjust your approach. Consider using `open_nodes` to explore related entities in the knowledge graph.
+    4. **Provide Comprehensive Answers:** Use the information from your memory and tools to provide informed and comprehensive answers. If you identify gaps in the knowledge graph, consider using `add_observations`, `create_entities`, or `create_relations` to enrich it for future interactions.
     NOTE: THE USER CAN'T SEE THE TOOL RESPONSE.
-    A few things to remember:
-    - Please include markdown-formatted links to any citations used in your response. Only include one
-    or two citations per response unless more are needed. ONLY USE LINKS RETURNED BY THE TOOLS.
-    - Use calculator tool with numexpr to answer math questions. The user does not understand numexpr,
-      so for the final response, use human readable format - e.g. "300 * 200", not "(300 \\times 200)".
     """
 
 _mcp_client = None
@@ -43,6 +50,11 @@ async def get_tools():
                 "memory": {
                     "command": "npx",
                     "args": ["-y", "@modelcontextprotocol/server-memory"],
+                    "transport": "stdio",
+                },
+                "everything": {
+                    "command": "npx",
+                    "args": ["-y", "@modelcontextprotocol/server-everything"],
                     "transport": "stdio",
                 }
             }
