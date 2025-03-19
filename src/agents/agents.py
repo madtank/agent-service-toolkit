@@ -1,43 +1,46 @@
+from typing import Awaitable, Callable, Union
 from dataclasses import dataclass
 
 from langgraph.graph.state import CompiledStateGraph
 
-from agents.bg_task_agent.bg_task_agent import bg_task_agent
-from agents.chatbot import chatbot
-from agents.command_agent import command_agent
-from agents.interrupt_agent import interrupt_agent
-from agents.langgraph_supervisor_agent import langgraph_supervisor_agent
 from agents.research_assistant import research_assistant
+from agents.mcp_agent import get_research_assistant as get_mcp_agent
 from schema import AgentInfo
 
-DEFAULT_AGENT = "research-assistant"
-
+DEFAULT_AGENT = "mcp-agent"
 
 @dataclass
 class Agent:
     description: str
     graph: CompiledStateGraph
 
-
-agents: dict[str, Agent] = {
-    "chatbot": Agent(description="A simple chatbot.", graph=chatbot),
-    "research-assistant": Agent(
-        description="A research assistant with web search and calculator.", graph=research_assistant
-    ),
-    "command-agent": Agent(description="A command agent.", graph=command_agent),
-    "bg-task-agent": Agent(description="A background task agent.", graph=bg_task_agent),
-    "langgraph-supervisor-agent": Agent(
-        description="A langgraph supervisor agent", graph=langgraph_supervisor_agent
-    ),
-    "interrupt-agent": Agent(description="An agent the uses interrupts.", graph=interrupt_agent),
+# Define agent getters - can be either sync (returning the graph directly) or async (returning a promise of a graph)
+AGENTS: dict[str, Union[CompiledStateGraph, Callable[[], Awaitable[CompiledStateGraph]]]] = {
+    "research-assistant": research_assistant,
+    "mcp-agent": get_mcp_agent,
 }
 
-
-def get_agent(agent_id: str) -> CompiledStateGraph:
-    return agents[agent_id].graph
-
+async def get_agent(agent_id: str = DEFAULT_AGENT) -> CompiledStateGraph:
+    """Get an agent by ID."""
+    agent_getter = AGENTS.get(agent_id)
+    if not agent_getter:
+        raise ValueError(f"Agent {agent_id} not found")
+    
+    # If agent_getter is already a CompiledStateGraph, return it directly
+    if isinstance(agent_getter, CompiledStateGraph):
+        return agent_getter
+    # Otherwise, call the async function to get the agent
+    return await agent_getter()
 
 def get_all_agent_info() -> list[AgentInfo]:
+    """Get info about all available agents."""
     return [
-        AgentInfo(key=agent_id, description=agent.description) for agent_id, agent in agents.items()
+        AgentInfo(
+            key="research-assistant",
+            description="Ask me anything! I can search for information and do calculations."
+        ),
+        AgentInfo(
+            key="mcp-agent",
+            description="Research assistant with access to knowledge graphs and MCP tools."
+        )
     ]

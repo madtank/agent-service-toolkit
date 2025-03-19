@@ -1,5 +1,23 @@
 FROM python:3.12.3-slim
 
+# Install Node.js from NodeSource repository
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
+    gnupg \
+    && rm -rf /var/lib/apt/lists/*
+
+# Add NodeSource repository
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+
+# Install Node.js and npm
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Now you can safely upgrade npm
+RUN npm install -g npm@latest
+
 WORKDIR /app
 
 ENV UV_PROJECT_ENVIRONMENT="/usr/local/"
@@ -9,6 +27,10 @@ COPY pyproject.toml .
 COPY uv.lock .
 RUN pip install --no-cache-dir uv
 RUN uv sync --frozen --no-install-project --no-dev
+
+# Install MCP server packages
+RUN npm install -g @modelcontextprotocol/server-memory \
+                   @modelcontextprotocol/server-everything
 
 COPY src/agents/ ./agents/
 COPY src/core/ ./core/

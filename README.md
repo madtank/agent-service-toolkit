@@ -55,6 +55,7 @@ docker compose watch
 1. **Advanced Streaming**: A novel approach to support both token-based and message-based streaming.
 1. **Streamlit Interface**: Provides a user-friendly chat interface for interacting with the agent.
 1. **Multiple Agent Support**: Run multiple agents in the service and call by URL path. Available agents and models are described in `/info`
+1. **Model Context Protocol Integration**: Easily integrate external MCP servers for powerful tool capabilities like memory and sequential thinking.
 1. **Asynchronous Design**: Utilizes async/await for efficient handling of concurrent requests.
 1. **Content Moderation**: Implements LlamaGuard for content moderation (requires Groq API key).
 1. **Feedback Mechanism**: Includes a star-based feedback system integrated with LangSmith.
@@ -94,6 +95,95 @@ To customize the agent for your own use case:
 1. Add your new agent to the `src/agents` directory. You can copy `research_assistant.py` or `chatbot.py` and modify it to change the agent's behavior and tools.
 1. Import and add your new agent to the `agents` dictionary in `src/agents/agents.py`. Your agent can be called by `/<your_agent_name>/invoke` or `/<your_agent_name>/stream`.
 1. Adjust the Streamlit interface in `src/streamlit_app.py` to match your agent's capabilities.
+
+### Model Context Protocol (MCP) Integration
+
+This fork enhances the original toolkit with support for the [Anthropic Model Context Protocol](https://modelcontextprotocol.io/) (MCP), which allows for seamless integration with various external tool servers.
+
+#### What is MCP?
+
+MCP is a protocol that standardizes how large language models (LLMs) interact with external tools, creating a consistent interface for tool developers and model providers. This enables:
+
+1. **Dynamic Tool Discovery**: Your agent can discover and use tools from multiple external servers
+2. **Consistent Interface**: Tools follow a standard protocol regardless of implementation
+3. **Specialized Capabilities**: Easily add memory, knowledge graph, and other advanced capabilities
+
+#### Available MCP Servers
+
+By default, this fork comes with configuration in the research_assistant.py file for:
+- **Memory Server**: Provides knowledge graph-based memory capabilities (via npm package `@modelcontextprotocol/server-memory`)
+
+You can add more servers from the [MCP Servers Repository](https://github.com/modelcontextprotocol/servers/tree/main), such as:
+- Search tools
+- Code analysis
+- Database querying
+- Sequential thinking
+- Function calling
+- And many more!
+
+#### Adding Your Own MCP Servers
+
+To add an MCP server to your agent, the configuration is straightforward using either stdio transport (for npm packages, Python scripts) or HTTP/SSE for hosted services:
+
+1. The implementation is currently integrated directly in the research_assistant.py file:
+
+```python
+# From src/agents/research_assistant.py
+async def get_tools():
+    """Get tools from MCP servers."""
+    global _mcp_client
+    if _mcp_client is None:
+        _mcp_client = MultiServerMCPClient(
+            {
+                "memory": {
+                    "command": "npx",
+                    "args": ["-y", "@modelcontextprotocol/server-memory"],
+                    "transport": "stdio",
+                }
+            }
+        )
+        await _mcp_client.__aenter__()
+    return _mcp_client.get_tools()
+```
+
+2. To add your own servers, you can modify the MultiServerMCPClient configuration:
+
+```python
+# For stdio transport (npm packages or local Python scripts)
+_mcp_client = MultiServerMCPClient(
+    {
+        "memory": {
+            "command": "npx",
+            "args": ["-y", "@modelcontextprotocol/server-memory"],
+            "transport": "stdio",
+        },
+        "your_new_server": {  # Add your new server here
+            "command": "npx",  # or "python" for Python scripts
+            "args": ["-y", "@modelcontextprotocol/your-server-package"],
+            "transport": "stdio",
+        }
+    }
+)
+
+# For HTTP/SSE transport (hosted services)
+_mcp_client = MultiServerMCPClient(
+    {
+        "your_http_server": {
+            "url": "http://localhost:5001/sse",  # Your server endpoint
+            "transport": "sse",
+        }
+    }
+)
+```
+
+3. Use the MCP tools with your agent by retrieving them with:
+```python
+tools = _mcp_client.get_tools()
+```
+
+See `mcp_langchain.md` for more detailed information on working with MCP servers.
+
+> Note: The repository also includes an `mcp_agent` directory which contains an alternative implementation for future use, but the primary implementation is directly in the research_assistant.py file.
 
 ### Docker Setup
 
