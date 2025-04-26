@@ -1,313 +1,147 @@
-# 🧰 AI Agent Service Toolkit
+# MCP-Enhanced AI Agent Service Toolkit
 
-[![build status](https://github.com/JoshuaC215/agent-service-toolkit/actions/workflows/test.yml/badge.svg)](https://github.com/JoshuaC215/agent-service-toolkit/actions/workflows/test.yml) [![codecov](https://codecov.io/github/JoshuaC215/agent-service-toolkit/graph/badge.svg?token=5MTJSYWD05)](https://codecov.io/github/JoshuaC215/agent-service-toolkit) [![Python Version](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2FJoshuaC215%2Fagent-service-toolkit%2Frefs%2Fheads%2Fmain%2Fpyproject.toml)](https://github.com/JoshuaC215/agent-service-toolkit/blob/main/pyproject.toml)
-[![GitHub License](https://img.shields.io/github/license/JoshuaC215/agent-service-toolkit)](https://github.com/JoshuaC215/agent-service-toolkit/blob/main/LICENSE) [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_red.svg)](https://agent-service-toolkit.streamlit.app/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A full toolkit for running an AI agent service built with LangGraph, FastAPI and Streamlit.
+This project provides a powerful AI agent service built with LangChain and LangGraph, significantly enhanced with Anthropic's Model Context Protocol (MCP). It allows agents to leverage external tools for persistent memory, filesystem access, shell commands, web search, and more, offering advanced capabilities beyond standard function calling.
 
-It includes a [LangGraph](https://langchain-ai.github.io/langgraph/) agent, a [FastAPI](https://fastapi.tiangolo.com/) service to serve it, a client to interact with the service, and a [Streamlit](https://streamlit.io/) app that uses the client to provide a chat interface. Data structures and settings are built with [Pydantic](https://github.com/pydantic/pydantic).
+This toolkit is a fork, heavily modified to integrate and showcase MCP functionalities.
 
-This project offers a template for you to easily build and run your own agents using the LangGraph framework. It demonstrates a complete setup from agent definition to user interface, making it easier to get started with LangGraph-based projects by providing a full, robust toolkit.
+---
 
-**[🎥 Watch a video walkthrough of the repo and app](https://www.youtube.com/watch?v=pdYVHw_YCNY)**
+**⚠️ SECURITY WARNING: POWERFUL TOOLS INSIDE!**
 
-## Overview
+This agent integrates MCP tools that grant significant capabilities, including **filesystem access** and **shell command execution**. These tools can interact with the environment where the agent is run.
 
-### [Try the app!](https://agent-service-toolkit.streamlit.app/)
+**It is STRONGLY RECOMMENDED to run this agent ONLY within the provided Docker container environment.** This isolates the agent and its tools, limiting potential security risks associated with unintended filesystem modifications or command executions. **DO NOT run this agent directly on your host machine without fully understanding the risks and implementing appropriate sandboxing.**
 
-<a href="https://agent-service-toolkit.streamlit.app/"><img src="media/app_screenshot.png" width="600"></a>
+---
 
-### Quickstart
+## Quickstart (Docker Recommended)
 
-Run directly in python
+Get up and running quickly using Docker:
 
-```sh
-# At least one LLM API key is required
-echo 'OPENAI_API_KEY=your_openai_api_key' >> .env
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/madtank/agent-service-toolkit.git
+    cd mcp-agent # Or your repository directory name
+    ```
 
-# uv is recommended but "pip install ." also works
-pip install uv
-uv sync --frozen
-# "uv sync" creates .venv automatically
-source .venv/bin/activate
-python src/run_service.py
+2.  **Set up Environment Variables:**
+    Copy the example environment file and edit it with your API keys and settings:
+    ```bash
+    cp .env.example .env
+    nano .env # Or your preferred editor
+    ```
+    *   Ensure at least one LLM provider (e.g., `OPENAI_API_KEY`) is configured.
+    *   Review settings for LangSmith, authentication, and tool keys (e.g., `OPENWEATHERMAP_API_KEY`).
 
-# In another shell
-source .venv/bin/activate
-streamlit run src/streamlit_app.py
-```
+3.  **Build and Run with Docker Compose:**
+    This command uses `watch` mode for automatic reloading during development.
+    ```bash
+    docker compose watch
+    ```
 
-Run with docker
+4.  **Access the Application:**
+    *   **Streamlit UI:** Open your browser to `http://localhost:8501`
+    *   **Agent Service API:** The FastAPI service is available at `http://localhost:8080` (Docs: `/docs` or `/redoc`).
 
-```sh
-echo 'OPENAI_API_KEY=your_openai_api_key' >> .env
-docker compose watch
-```
+## Features
 
-### Architecture Diagram
+*   **LangGraph Foundation:** Built on LangGraph for creating robust, stateful agent applications.
+*   **Model Context Protocol (MCP) Integration:** Leverages MCP for dynamic and powerful tool usage.
+    *   **Persistent Memory:** Knowledge graph capabilities via `@modelcontextprotocol/server-memory`.
+    *   **Filesystem Access:** Read/write files within a container-defined volume via `@modelcontextprotocol/server-filesystem`.
+    *   **Shell Command Execution:** Run shell commands within the container via `mcp-shell`.
+    *   **Web Search:** Integrated DuckDuckGo search via `duckduckgo-mcp-server`.
+*   **Extensible:** Easily add more MCP servers or standard LangChain tools.
+*   **Streamlit UI:** Simple web interface for interacting with the agent.
+*   **FastAPI Backend:** Exposes the agent logic via a REST API.
+*   **Dockerized:** Recommended containerized setup for security and ease of use.
+*   **Modern Python Tooling:** Uses `uv` for fast dependency management.
 
-<img src="media/agent_architecture.png" width="600">
+## Architecture Overview
 
-### Key Features
+The toolkit consists of:
 
-1. **LangGraph Agent and latest features**: A customizable agent built using the LangGraph framework. Implements the latest LangGraph v0.3 features including human in the loop with `interrupt()`, and flow control with `Command`, and `langgraph-supervisor`.
-1. **FastAPI Service**: Serves the agent with both streaming and non-streaming endpoints.
-1. **Advanced Streaming**: A novel approach to support both token-based and message-based streaming.
-1. **Streamlit Interface**: Provides a user-friendly chat interface for interacting with the agent.
-1. **Multiple Agent Support**: Run multiple agents in the service and call by URL path. Available agents and models are described in `/info`
-1. **Model Context Protocol Integration**: Easily integrate external MCP servers for powerful tool capabilities like memory and sequential thinking.
-1. **Asynchronous Design**: Utilizes async/await for efficient handling of concurrent requests.
-1. **Content Moderation**: Implements LlamaGuard for content moderation (requires Groq API key).
-1. **Feedback Mechanism**: Includes a star-based feedback system integrated with LangSmith.
-1. **Docker Support**: Includes Dockerfiles and a docker compose file for easy development and deployment.
-1. **Testing**: Includes robust unit and integration tests for the full repo.
+1.  **Agent Service (`agent_service`):** A FastAPI application serving the LangGraph agent (`mcp_agent.py`). It initializes and manages the MCP client (`MultiServerMCPClient`) and the associated MCP server processes within the container.
+2.  **Streamlit UI (`streamlit_app`):** A web interface that communicates with the Agent Service API to provide a chat experience.
+3.  **MCP Servers:** Processes (like `npx`, `uvx`) started by the `MultiServerMCPClient` within the `agent_service` container, providing tools via standard I/O or other transports.
+4.  **Docker Environment:** `compose.yaml` defines the services, networking, and volumes (like mapping `./data` to `/app/data` for the filesystem tool).
 
-### Key Files
+## Model Context Protocol (MCP) Details
 
-The repository is structured as follows:
+MCP standardizes how agents interact with external tools, enabling more complex and stateful interactions than simple function calls.
 
-- `src/agents/`: Defines several agents with different capabilities
-- `src/schema/`: Defines the protocol schema
-- `src/core/`: Core modules including LLM definition and settings
-- `src/service/service.py`: FastAPI service to serve the agents
-- `src/client/client.py`: Client to interact with the agent service
-- `src/streamlit_app.py`: Streamlit app providing a chat interface
-- `tests/`: Unit and integration tests
+### Configured Servers
 
-## Setup and Usage
-
-1. Clone the repository:
-
-   ```sh
-   git clone https://github.com/JoshuaC215/agent-service-toolkit.git
-   cd agent-service-toolkit
-   ```
-
-2. Set up environment variables:
-   Create a `.env` file in the root directory. At least one LLM API key or configuration is required. See the [`.env.example` file](./.env.example) for a full list of available environment variables, including a variety of model provider API keys, header-based authentication, LangSmith tracing, testing and development modes, and OpenWeatherMap API key.
-
-3. You can now run the agent service and the Streamlit app locally, either with Docker or just using Python. The Docker setup is recommended for simpler environment setup and immediate reloading of the services when you make changes to your code.
-
-### Building or customizing your own agent
-
-To customize the agent for your own use case:
-
-1. Add your new agent to the `src/agents` directory. You can copy `research_assistant.py` or `chatbot.py` and modify it to change the agent's behavior and tools.
-1. Import and add your new agent to the `agents` dictionary in `src/agents/agents.py`. Your agent can be called by `/<your_agent_name>/invoke` or `/<your_agent_name>/stream`.
-1. Adjust the Streamlit interface in `src/streamlit_app.py` to match your agent's capabilities.
-
-### Model Context Protocol (MCP) Integration
-
-This fork enhances the original toolkit with support for the [Anthropic Model Context Protocol](https://modelcontextprotocol.io/) (MCP), which allows for seamless integration with various external tool servers.
-
-#### What is MCP?
-
-MCP is a protocol that standardizes how large language models (LLMs) interact with external tools, creating a consistent interface for tool developers and model providers. This enables:
-
-1. **Dynamic Tool Discovery**: Your agent can discover and use tools from multiple external servers
-2. **Consistent Interface**: Tools follow a standard protocol regardless of implementation
-3. **Specialized Capabilities**: Easily add memory, knowledge graph, and other advanced capabilities
-
-#### Available MCP Servers
-
-By default, this fork comes with configuration in the research_assistant.py file for:
-- **Memory Server**: Provides knowledge graph-based memory capabilities (via npm package `@modelcontextprotocol/server-memory`)
-
-You can add more servers from the [MCP Servers Repository](https://github.com/modelcontextprotocol/servers/tree/main), such as:
-- Search tools
-- Code analysis
-- Database querying
-- Sequential thinking
-- Function calling
-- And many more!
-
-#### Adding Your Own MCP Servers
-
-To add an MCP server to your agent, the configuration is straightforward using either stdio transport (for npm packages, Python scripts) or HTTP/SSE for hosted services:
-
-1. The implementation is currently integrated directly in the research_assistant.py file:
+The primary agent (`src/agents/mcp_agent.py`) is configured to use the following MCP servers:
 
 ```python
-# From src/agents/research_assistant.py
-async def get_tools():
-    """Get tools from MCP servers."""
-    global _mcp_client
-    if _mcp_client is None:
-        _mcp_client = MultiServerMCPClient(
-            {
-                "memory": {
-                    "command": "npx",
-                    "args": ["-y", "@modelcontextprotocol/server-memory"],
-                    "transport": "stdio",
-                }
-            }
-        )
-        await _mcp_client.__aenter__()
-    return _mcp_client.get_tools()
+# From src/agents/mcp_agent.py in get_tools()
+_mcp_client = MultiServerMCPClient({
+    "mcp-shell": { ... },      # Shell access
+    "memory": { ... },         # Knowledge graph memory
+    "ddg-search": { ... },     # DuckDuckGo search
+    "filesystem": { ... }      # Filesystem access (mapped to /app/data)
+})
 ```
 
-2. To add your own servers, you can modify the MultiServerMCPClient configuration:
+*   Refer to [`src/agents/mcp_agent.py`](src/agents/mcp_agent.py) for the exact command, arguments, and transport configurations.
+*   The `filesystem` server operates on the `/app/data` directory *inside the container*, which is mapped to the [`data`](data) directory on your host machine via the `volumes` definition in [`compose.yaml`](compose.yaml).
 
-```python
-# For stdio transport (npm packages or local Python scripts)
-_mcp_client = MultiServerMCPClient(
-    {
-        "memory": {
-            "command": "npx",
-            "args": ["-y", "@modelcontextprotocol/server-memory"],
-            "transport": "stdio",
-        },
-        "your_new_server": {  # Add your new server here
-            "command": "npx",  # or "python" for Python scripts
-            "args": ["-y", "@modelcontextprotocol/your-server-package"],
-            "transport": "stdio",
-        }
-    }
-)
+### Adding/Modifying MCP Servers
 
-# For HTTP/SSE transport (hosted services)
-_mcp_client = MultiServerMCPClient(
-    {
-        "your_http_server": {
-            "url": "http://localhost:5001/sse",  # Your server endpoint
-            "transport": "sse",
-        }
-    }
-)
-```
+1.  Edit the dictionary passed to `MultiServerMCPClient` in [`src/agents/mcp_agent.py`](src/agents/mcp_agent.py).
+2.  Add new entries for new servers, specifying the `command`, `args`, `transport` (`stdio`, `sse`, etc.), and optional `env`.
+3.  If the new server requires specific host directories or environment variables, update the `agent_service` definition in [`compose.yaml`](compose.yaml) accordingly (e.g., add new `volumes` or `environment` entries).
+4.  Rebuild and restart the Docker containers (`docker compose up --build`).
 
-3. Use the MCP tools with your agent by retrieving them with:
-```python
-tools = _mcp_client.get_tools()
-```
+## Development
 
-See `mcp_langchain.md` for more detailed information on working with MCP servers.
+### Using Docker (Recommended)
 
-> Note: The repository also includes an `mcp_agent` directory which contains an alternative implementation for future use, but the primary implementation is directly in the research_assistant.py file.
+The `docker compose watch` command provides the best development experience:
 
-### Docker Setup
+*   It automatically rebuilds/restarts services when relevant source files change (see `develop.watch` sections in [`compose.yaml`](compose.yaml)).
+*   Ensures the agent runs in the intended isolated environment.
+*   Changes to dependencies (`pyproject.toml`, [`uv.lock`](uv.lock)) or Dockerfiles still require a manual rebuild: `docker compose up --build`.
 
-This project includes a Docker setup for easy development and deployment. The `compose.yaml` file defines two services: `agent_service` and `streamlit_app`. The `Dockerfile` for each is in their respective directories.
+### Local Development (Not Recommended)
 
-For local development, we recommend using [docker compose watch](https://docs.docker.com/compose/file-watch/). This feature allows for a smoother development experience by automatically updating your containers when changes are detected in your source code.
+**⚠️ DANGER:** As stated previously, running this agent directly on your host machine is **strongly discouraged** due to security risks from MCP tools. Proceed only if you understand the risks and have implemented sandboxing.
 
-1. Make sure you have Docker and Docker Compose (>=[2.23.0](https://docs.docker.com/compose/release-notes/#2230)) installed on your system.
+1.  **Prerequisites:** Ensure Python (3.10+), `uv`, and any necessary MCP server dependencies (like `npx` for Node.js-based servers) are installed on your host.
+2.  **Install Dependencies:**
+    ```bash
+    uv sync
+    ```
+3.  **Set Environment Variables:** Ensure variables from [`.env`](.env) are available in your shell (e.g., `export $(cat .env | xargs)` or use a tool like `direnv`).
+4.  **Run Agent Service:**
+    ```bash
+    python src/run_service.py
+    ```
+5.  **Run Streamlit App (in a separate terminal):**
+    ```bash
+    streamlit run src/streamlit_app.py
+    ```
+6.  **Access the App:** Open your browser to `http://localhost:8501`.
 
-2. Build and launch the services in watch mode:
+## Configuration
 
-   ```sh
-   docker compose watch
-   ```
+*   **.env:** Main configuration for API keys, LangSmith, etc.
+*   **src/agents/mcp_agent.py:** Agent instructions, MCP server definitions (`get_tools`), LangGraph setup (`initialize_agent`).
+*   **compose.yaml:** Docker service definitions, ports, volumes, environment variables passed to containers, watch configurations.
 
-3. The services will now automatically update when you make changes to your code:
-   - Changes in the relevant python files and directories will trigger updates for the relevantservices.
-   - NOTE: If you make changes to the `pyproject.toml` or `uv.lock` files, you will need to rebuild the services by running `docker compose up --build`.
+## Screenshots
 
-4. Access the Streamlit app by navigating to `http://localhost:8501` in your web browser.
+Example of the agent using MCP tools:
 
-5. The agent service API will be available at `http://0.0.0.0:8080`. You can also use the OpenAPI docs at `http://0.0.0.0:8080/redoc`.
+![MCP Agent Screenshot](images/mcp-agent-streamlit-example.png)
 
-6. Use `docker compose down` to stop the services.
+Example demonstrating memory recall:
 
-This setup allows you to develop and test your changes in real-time without manually restarting the services.
-
-### Building other apps on the AgentClient
-
-The repo includes a generic `src/client/client.AgentClient` that can be used to interact with the agent service. This client is designed to be flexible and can be used to build other apps on top of the agent. It supports both synchronous and asynchronous invocations, and streaming and non-streaming requests.
-
-See the `src/run_client.py` file for full examples of how to use the `AgentClient`. A quick example:
-
-```python
-from client import AgentClient
-client = AgentClient()
-
-response = client.invoke("Tell me a brief joke?")
-response.pretty_print()
-# ================================== Ai Message ==================================
-#
-# A man walked into a library and asked the librarian, "Do you have any books on Pavlov's dogs and Schrödinger's cat?"
-# The librarian replied, "It rings a bell, but I'm not sure if it's here or not."
-
-```
-
-### Development with LangGraph Studio
-
-The agent supports [LangGraph Studio](https://github.com/langchain-ai/langgraph-studio), a new IDE for developing agents in LangGraph.
-
-You can simply install LangGraph Studio, add your `.env` file to the root directory as described above, and then launch LangGraph studio pointed at the root directory. Customize `langgraph.json` as needed.
-
-### Using Ollama
-
-⚠️ _**Note:** Ollama support in agent-service-toolkit is experimental and may not work as expected. The instructions below have been tested using Docker Desktop on a MacBook Pro. Please file an issue for any challenges you encounter._
-
-You can also use [Ollama](https://ollama.com) to run the LLM powering the agent service.
-
-1. Install Ollama using instructions from https://github.com/ollama/ollama
-1. Install any model you want to use, e.g. `ollama pull llama3.2` and set the `OLLAMA_MODEL` environment variable to the model you want to use, e.g. `OLLAMA_MODEL=llama3.2`
-
-If you are running the service locally (e.g. `python src/run_service.py`), you should be all set!
-
-If you are running the service in Docker, you will also need to:
-
-1. [Configure the Ollama server as described here](https://github.com/ollama/ollama/blob/main/docs/faq.md#how-do-i-configure-ollama-server), e.g. by running `launchctl setenv OLLAMA_HOST "0.0.0.0"` on MacOS and restart Ollama.
-1. Set the `OLLAMA_BASE_URL` environment variable to the base URL of the Ollama server, e.g. `OLLAMA_BASE_URL=http://host.docker.internal:11434`
-1. Alternatively, you can run `ollama/ollama` image in Docker and use a similar configuration (however it may be slower in some cases).
-
-### Local development without Docker
-
-You can also run the agent service and the Streamlit app locally without Docker, just using a Python virtual environment.
-
-1. Create a virtual environment and install dependencies:
-
-   ```sh
-   pip install uv
-   uv sync --frozen
-   source .venv/bin/activate
-   ```
-
-2. Run the FastAPI server:
-
-   ```sh
-   python src/run_service.py
-   ```
-
-3. In a separate terminal, run the Streamlit app:
-
-   ```sh
-   streamlit run src/streamlit_app.py
-   ```
-
-4. Open your browser and navigate to the URL provided by Streamlit (usually `http://localhost:8501`).
-
-## Projects built with or inspired by agent-service-toolkit
-
-The following are a few of the public projects that drew code or inspiration from this repo.
-
-- **[alexrisch/agent-web-kit](https://github.com/alexrisch/agent-web-kit)** A Next.JS frontend for agent-service-toolkit
-- **[raushan-in/dapa](https://github.com/raushan-in/dapa)** - Digital Arrest Protection App (DAPA) enables users to report financial scams and frauds efficiently via a user-friendly platform.
-
-**Please create a pull request editing the README or open a discussion with any new ones to be added!** Would love to include more projects.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request. Currently the tests need to be run using the local development without Docker setup. To run the tests for the agent service:
-
-1. Ensure you're in the project root directory and have activated your virtual environment.
-
-2. Install the development dependencies and pre-commit hooks:
-
-   ```sh
-   pip install uv
-   uv sync --frozen
-   pre-commit install
-   ```
-
-3. Run the tests using pytest:
-
-   ```sh
-   pytest
-   ```
+![MCP Agent Memory Check Example](media/memory_check.png)
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

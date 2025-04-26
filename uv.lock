@@ -76,7 +76,7 @@ requires-dist = [
     { name = "langchain-core", specifier = "~=0.3.33" },
     { name = "langchain-google-genai", specifier = "~=2.0.11" },
     { name = "langchain-groq", specifier = "~=0.2.1" },
-    { name = "langchain-mcp-adapters", specifier = ">=0.0.5" },
+    { name = "langchain-mcp-adapters", specifier = ">=0.0.9" },
     { name = "langchain-ollama", specifier = "~=0.2.3" },
     { name = "langchain-openai", specifier = "~=0.2.9" },
     { name = "langgraph", specifier = "~=0.3.5" },
@@ -1092,15 +1092,15 @@ wheels = [
 
 [[package]]
 name = "langchain-mcp-adapters"
-version = "0.0.5"
+version = "0.0.9"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "langchain-core" },
     { name = "mcp" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/bb/84/60cfc76dbe5e7a6721eacae531955e5aedcd65febb3398ca3a46e8d2ab1b/langchain_mcp_adapters-0.0.5.tar.gz", hash = "sha256:d05de412b2910ec652f8ef6008fb7f8ec80db9e4f06593db1d613ebafc15b83d", size = 8517 }
+sdist = { url = "https://files.pythonhosted.org/packages/1a/48/dc5544f5b919b4ff9e736ec8db71217431c585c5c87acd3ab7558cc06cee/langchain_mcp_adapters-0.0.9.tar.gz", hash = "sha256:9ecd10fc420d98b3c14115bbca3174575e0a4ea29bd125ef39d11191a72ff1a1", size = 14827 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/87/b7/96da8de4776160d41eb4b24e61b3056ed793d4414008f2e69b14427e5f8a/langchain_mcp_adapters-0.0.5-py3-none-any.whl", hash = "sha256:8601beb4692c64a8ef8961468ec73c24558804ff09a7c54612bd2d5225ac4ff8", size = 8402 },
+    { url = "https://files.pythonhosted.org/packages/6f/24/3a4be149e8db15936533357f987b4b89c74c7f039427d6229679dbcc53b9/langchain_mcp_adapters-0.0.9-py3-none-any.whl", hash = "sha256:7c3dedd7830de826f418706c8a2fe388afcf8daf2037a1b39d1e065a5eacb082", size = 10065 },
 ]
 
 [[package]]
