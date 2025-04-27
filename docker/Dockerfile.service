@@ -28,15 +28,12 @@ COPY uv.lock .
 RUN pip install --no-cache-dir uv
 RUN uv sync --frozen --no-install-project --no-dev
 
-# Install MCP server packages
-RUN npm install -g @modelcontextprotocol/server-memory \
-                   @modelcontextprotocol/server-everything
-
 COPY src/agents/ ./agents/
 COPY src/core/ ./core/
 COPY src/memory/ ./memory/
 COPY src/schema/ ./schema/
 COPY src/service/ ./service/
 COPY src/run_service.py .
+COPY config/ ./config/
 
 CMD ["python", "run_service.py"]

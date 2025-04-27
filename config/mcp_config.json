@@ -1,0 +1,30 @@
+{
+    "servers": {
+      "mcp-shell": {
+        "command": "npx",
+        "args": ["-y", "mcp-shell"],
+        "transport": "stdio"
+      },
+      "memory": {
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-memory"],
+        "transport": "stdio",
+        "env": {
+          "MEMORY_FILE_PATH": "${MEMORY_FILE_PATH}"
+        }
+      },
+      "perplexity-ask": {
+        "command": "npx",
+        "args": ["-y", "server-perplexity-ask"],
+        "transport": "stdio",
+        "env": {
+          "PERPLEXITY_API_KEY": "${PERPLEXITY_API_KEY}"
+        }
+      },
+      "filesystem": {
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-filesystem", "${DATA_DIR}", "/"],
+        "transport": "stdio"
+      }
+    }
+  }

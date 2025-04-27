@@ -23,18 +23,6 @@ async def main() -> None:
         menu_items={},
     )
 
-    # Hide the Streamlit upper-right chrome
-    st.html(
-        """
-        <style>
-        [data-testid="stStatusWidget"] {
-                visibility: hidden;
-                height: 0%;
-                position: fixed;
-            }
-        </style>
-        """
-    )
     if st.get_option("client.toolbarMode") != "minimal":
         st.set_option("client.toolbarMode", "minimal")
         await asyncio.sleep(0.1)
@@ -106,7 +94,7 @@ async def main() -> None:
         def share_chat_dialog() -> None:
             session = st.runtime.get_instance()._session_mgr.list_active_sessions()[0]
             st_base_url = urllib.parse.urlunparse(
-                [session.client.request.protocol, session.client.request.host, "", "", "", ""]
+                [session.client.request.protocol, session.client.request.host, "", "", ""]
             )
             if not st_base_url.startswith("https") and "localhost" not in st_base_url:
                 st_base_url = st_base_url.replace("http", "https")
@@ -122,18 +110,87 @@ async def main() -> None:
     
     # --- Quick Actions on Top of the Main Page ---
     st.subheader("Quick Actions")
-    col1, col2 = st.columns(2)
+    
+    # Create tabs for different categories of tests
+    tabs = st.tabs(["Basic Tests", "File Operations", "Complex Tests", "Fun Demos"])
     
     # Only show buttons if we're not currently processing a sample input
     if not st.session_state.get("sample_input"):
-        with col1:
-            if st.button("🛠️ List Available Tools", key="list_tools_btn", use_container_width=True):
-                st.session_state.sample_input = "What tools do you have available?"
-                st.rerun()
-        with col2:
-            if st.button("📝 Check Previous Conversation", key="check_history_btn", use_container_width=True):
-                st.session_state.sample_input = "What have we discussed before? Please check your memory but don't list your tools again."
-                st.rerun()
+        # Basic Tests tab
+        with tabs[0]:
+            st.markdown("##### Simple commands to test basic functionality")
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("🛠️ List Available Tools", key="list_tools_btn", use_container_width=True):
+                    st.session_state.sample_input = "What tools do you have available?"
+                    st.rerun()
+                if st.button("📝 Check Memory", key="check_history_btn", use_container_width=True):
+                    st.session_state.sample_input = "What have we discussed before? Please check your memory but don't list your tools again."
+                    st.rerun()
+            with col2:
+                if st.button("📅 What's Today's Date?", key="date_btn", use_container_width=True):
+                    st.session_state.sample_input = "What is today's date? Can you also tell me what day of the week it is?"
+                    st.rerun()
+                if st.button("🌐 Current Events", key="news_btn", use_container_width=True):
+                    st.session_state.sample_input = "What are 2-3 recent technology news headlines? Keep your response brief and focused."
+                    st.rerun()
+        
+        # File Operations tab
+        with tabs[1]:
+            st.markdown("##### Test file reading and manipulation capabilities")
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("📂 List Files", key="list_files_btn", use_container_width=True):
+                    st.session_state.sample_input = "Can you list all the files in the data directory?"
+                    st.rerun()
+                if st.button("📄 Read Sample File", key="read_file_btn", use_container_width=True):
+                    st.session_state.sample_input = "Please read the contents of data/todays_date.txt and summarize what you find."
+                    st.rerun()
+            with col2:
+                if st.button("📋 Create Note", key="create_note_btn", use_container_width=True):
+                    st.session_state.sample_input = "Can you create a new text file in the data directory named 'test_note.txt' with today's date and a brief greeting?"
+                    st.rerun()
+                if st.button("🔍 Find in Files", key="find_in_files_btn", use_container_width=True):
+                    st.session_state.sample_input = "Search through files in the data directory for any mentions of 'language models' or 'LLMs'."
+                    st.rerun()
+        
+        # Complex Tests tab
+        with tabs[2]:
+            st.markdown("##### More complex multi-step operations")
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("🔄 Process & Transform", key="process_btn", use_container_width=True):
+                    st.session_state.sample_input = "Read data/llms-full.txt if it exists, count how many different LLM providers are mentioned, and create a summary file with the count and list of providers."
+                    st.rerun()
+                if st.button("🧮 Data Analysis", key="analysis_btn", use_container_width=True):
+                    st.session_state.sample_input = "Create a simple dataset of 5 random numbers in a file called 'numbers.txt', then read it back and calculate the average, min, max, and standard deviation."
+                    st.rerun()
+            with col2:
+                if st.button("🔍 Research Assistant", key="research_btn", use_container_width=True):
+                    st.session_state.sample_input = "Tell me 2-3 interesting facts about artificial intelligence. Keep your response concise and summarize your findings in a file called 'ai_facts.txt'."
+                    st.rerun()
+                if st.button("📊 Web Data", key="web_data_btn", use_container_width=True):
+                    st.session_state.sample_input = "What is the current weather in San Francisco? Provide a brief summary."
+                    st.rerun()
+        
+        # Fun Demos tab
+        with tabs[3]:
+            st.markdown("##### Fun demonstrations of capabilities")
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("🎨 ASCII Art", key="ascii_btn", use_container_width=True):
+                    st.session_state.sample_input = "Create a simple ASCII art of a cat and save it to a file called 'ascii_cat.txt'."
+                    st.rerun()
+                if st.button("🎮 Text Adventure", key="adventure_btn", use_container_width=True):
+                    st.session_state.sample_input = "Let's play a short text adventure game. I'm in a mysterious forest. What do I see around me? Give me 3 options for what to do next."
+                    st.rerun()
+            with col2:
+                if st.button("🎲 Random Challenge", key="random_btn", use_container_width=True):
+                    st.session_state.sample_input = "Generate a random coding challenge for me, then provide a solution in Python and save it to a file called 'challenge_solution.py'."
+                    st.rerun()
+                if st.button("🧩 Puzzle", key="puzzle_btn", use_container_width=True):
+                    st.session_state.sample_input = "Create a logic puzzle for me to solve. After I solve it or give up, create a file with the puzzle and solution."
+                    st.rerun()
 
     # --- Chat Area ---
     # Draw existing messages (no welcome message)
