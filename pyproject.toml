@@ -42,6 +42,7 @@ dependencies = [
     "pyarrow >=18.1.0",
     "pydantic ~=2.10.1",
     "pydantic-settings ~=2.6.1",
+    "pyowm ~=3.3.0",
     "python-dotenv ~=1.0.1",
     "setuptools ~=75.6.0",
     "streamlit ~=1.40.1",
