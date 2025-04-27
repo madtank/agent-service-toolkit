@@ -1,5 +1,9 @@
 from datetime import datetime
-from typing import Literal
+from typing import Literal, Dict, Any
+import json
+import os
+import os.path
+import re
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, SystemMessage
 from langgraph.checkpoint.memory import MemorySaver
@@ -8,54 +12,48 @@ from langgraph.managed import RemainingSteps
 from langgraph.prebuilt import create_react_agent
 from agents.llama_guard import LlamaGuard, LlamaGuardOutput, SafetyAssessment
 from core import get_model, settings
+from pydantic import SecretStr
 from langchain_mcp_adapters.client import MultiServerMCPClient
-import os
-import os.path
 
-# Determine environment and set up paths for MCP data
-in_docker = os.path.exists("/.dockerenv")
-base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-data_dir = "/app/data" if in_docker else os.path.join(base_dir, "data")
-memory_dir = "/app/memory_data" if in_docker else os.path.join(base_dir, "memory_data")
-memory_file = os.path.join(memory_dir, "memory.json")
+# Ensure directories exist
+os.makedirs(settings.MEMORY_DIR_PATH, exist_ok=True)
+os.makedirs(settings.DATA_DIR_PATH, exist_ok=True)
+os.makedirs(settings.CONFIG_DIR_PATH, exist_ok=True)
 
-os.makedirs(memory_dir, exist_ok=True)
-os.makedirs(data_dir, exist_ok=True)
+# Load MCP server configuration from JSON file
+def load_mcp_config() -> Dict[str, Any]:
+    try:
+        # Read the config file as text
+        with open(settings.MCP_CONFIG_FILE_PATH, 'r') as f:
+            config_text = f.read()
+        
+        # Find all ${VAR_NAME} patterns in the config
+        var_pattern = r'\${([A-Za-z0-9_]+)}'
+        matches = re.findall(var_pattern, config_text)
+        
+        # Replace each variable with its value from settings
+        for var_name in matches:
+            value = ""
+            if hasattr(settings, var_name):
+                attr = getattr(settings, var_name)
+                # Handle SecretStr values
+                if isinstance(attr, SecretStr):
+                    value = attr.get_secret_value()
+                else:
+                    value = str(attr)
+            
+            config_text = config_text.replace(f"${{{var_name}}}", value)
+        
+        # Parse the processed text as JSON
+        config = json.loads(config_text)
+        return config.get('servers', {})
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        print(f"Error loading MCP config from {settings.MCP_CONFIG_FILE_PATH}: {e}")
+        # Return a default empty config
+        return {}
 
-# Configure all MCP servers - enhanced configuration without timeout constraints
-SERVERS_CONFIG = {
-    "mcp-shell": {
-        "command": "npx",
-        "args": ["-y", "mcp-shell"],
-        "transport": "stdio"
-    },
-    "memory": {
-        "command": "npx",
-        "args": ["-y", "@modelcontextprotocol/server-memory"],
-        "transport": "stdio",
-        "env": {
-            "MEMORY_FILE_PATH": memory_file
-        }
-    },
-    "perplexity-ask": {
-        "command": "npx",
-        "args": ["-y", "server-perplexity-ask"],
-        "transport": "stdio",
-        "env": {
-            "PERPLEXITY_API_KEY": settings.PERPLEXITY_API_KEY.get_secret_value() if settings.PERPLEXITY_API_KEY else ""
-        }
-    },
-    "filesystem": {
-        "command": "npx",
-        "args": [
-            "-y",
-            "@modelcontextprotocol/server-filesystem",
-            data_dir,
-            "/"
-        ],
-        "transport": "stdio"
-    }
-}
+# Get the MCP server configuration
+SERVERS_CONFIG = load_mcp_config()
 
 class AgentState(MessagesState, total=False):
     """State for the research assistant agent."""

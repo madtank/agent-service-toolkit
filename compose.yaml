@@ -10,6 +10,7 @@ services:
     volumes:
       - ./memory_data:/app/memory_data
       - ./data:/app/data
+      - ./config:/app/config
     develop:
       watch:
         - path: src/agents/

@@ -10,6 +10,7 @@ checkpoints.db-*
 # Data directories
 copilot_data/*
 memory_data/*
+data/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

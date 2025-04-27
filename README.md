@@ -33,7 +33,7 @@ Get up and running quickly using Docker:
     nano .env # Or your preferred editor
     ```
     *   Ensure at least one LLM provider (e.g., `OPENAI_API_KEY`) is configured.
-    *   Review settings for LangSmith, authentication, and tool keys (e.g., `OPENWEATHERMAP_API_KEY`).
+    *   Review settings for LangSmith, authentication, and tool keys (e.g., `PERPLEXITY_API_KEY`).
 
 3.  **Build and Run with Docker Compose:**
     This command uses `watch` mode for automatic reloading during development.
@@ -72,29 +72,83 @@ The toolkit consists of:
 
 MCP standardizes how agents interact with external tools, enabling more complex and stateful interactions than simple function calls.
 
-### Configured Servers
+### Configured MCP Servers
 
-The primary agent (`src/agents/mcp_agent.py`) is configured to use the following MCP servers:
+The MCP servers are now configured via a dedicated JSON configuration file located at `config/mcp_config.json`. This provides a clean separation between configuration and code.
 
-```python
-# From src/agents/mcp_agent.py in get_tools()
-_mcp_client = MultiServerMCPClient({
-    "mcp-shell": { ... },      # Shell access
-    "memory": { ... },         # Knowledge graph memory
-    "ddg-search": { ... },     # DuckDuckGo search
-    "filesystem": { ... }      # Filesystem access (mapped to /app/data)
-})
+Current MCP servers include:
+- **mcp-shell**: Provides shell access within the container
+- **memory**: Knowledge graph memory for storing and retrieving information
+- **perplexity-ask**: Integration with Perplexity API for search
+- **filesystem**: File system access (mapped to /app/data)
+
+### Adding or Modifying MCP Servers
+
+To add or modify MCP servers, follow these steps:
+
+1. **Edit the MCP Configuration File**:
+   - Open `config/mcp_config.json`
+   - Add your new server configuration inside the `servers` object
+
+   Example for adding the Brave Search MCP server:
+   ```json
+   {
+     "servers": {
+       // ...existing servers...
+       "brave-search": {
+         "command": "npx",
+         "args": ["-y", "@modelcontextprotocol/server-brave-search"],
+         "transport": "stdio",
+         "env": {
+           "BRAVE_API_KEY": "${BRAVE_API_KEY}"
+         }
+       }
+     }
+   }
+   ```
+
+2. **Handle Environment Variables and Secrets**:
+   - For non-sensitive configuration, you can use values directly in the JSON
+   - For sensitive data like API keys:
+     - Add the variable to your `.env` file (e.g., `BRAVE_API_KEY=your_api_key`)
+     - Add the variable to `src/core/settings.py` like other API keys:
+       ```python
+       class Settings(BaseSettings):
+           # ...existing settings...
+           BRAVE_API_KEY: SecretStr | None = None
+       ```
+     - Reference it in the config using `${VARIABLE_NAME}` syntax
+
+3. **Update Docker Configuration** (if needed):
+   - If your MCP server requires additional volume mounts or environment variables:
+     - Update the `agent_service` section in `compose.yaml`
+     - If you need additional volumes mounted, add them to the `volumes` list
+
+4. **Restart the Application**:
+   - Rebuild and restart Docker containers: `docker compose up --build`
+
+The application will automatically:
+- Load the configuration from `config/mcp_config.json`
+- Substitute environment variables using the `${VARIABLE_NAME}` syntax
+- Initialize MCP servers based on the configuration
+
+### How Environment Variable Substitution Works
+
+The system supports variable substitution in both the `env` section and `args` array:
+
+- Variables are specified using `${VARIABLE_NAME}` syntax
+- Values are automatically retrieved from settings.py
+- SecretStr values are properly handled to extract their actual values
+- Data, memory, and config paths are automatically managed
+
+Example configuration with environment variables:
+```json
+"filesystem": {
+  "command": "npx",
+  "args": ["-y", "@modelcontextprotocol/server-filesystem", "${DATA_DIR_PATH}", "/"],
+  "transport": "stdio"
+}
 ```
-
-*   Refer to [`src/agents/mcp_agent.py`](src/agents/mcp_agent.py) for the exact command, arguments, and transport configurations.
-*   The `filesystem` server operates on the `/app/data` directory *inside the container*, which is mapped to the [`data`](data) directory on your host machine via the `volumes` definition in [`compose.yaml`](compose.yaml).
-
-### Adding/Modifying MCP Servers
-
-1.  Edit the dictionary passed to `MultiServerMCPClient` in [`src/agents/mcp_agent.py`](src/agents/mcp_agent.py).
-2.  Add new entries for new servers, specifying the `command`, `args`, `transport` (`stdio`, `sse`, etc.), and optional `env`.
-3.  If the new server requires specific host directories or environment variables, update the `agent_service` definition in [`compose.yaml`](compose.yaml) accordingly (e.g., add new `volumes` or `environment` entries).
-4.  Rebuild and restart the Docker containers (`docker compose up --build`).
 
 ## Development
 
@@ -131,16 +185,6 @@ The `docker compose watch` command provides the best development experience:
 *   **.env:** Main configuration for API keys, LangSmith, etc.
 *   **src/agents/mcp_agent.py:** Agent instructions, MCP server definitions (`get_tools`), LangGraph setup (`initialize_agent`).
 *   **compose.yaml:** Docker service definitions, ports, volumes, environment variables passed to containers, watch configurations.
-
-## Screenshots
-
-Example of the agent using MCP tools:
-
-![MCP Agent Screenshot](images/mcp-agent-streamlit-example.png)
-
-Example demonstrating memory recall:
-
-![MCP Agent Memory Check Example](media/memory_check.png)
 
 ## License
 

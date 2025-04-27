@@ -51,6 +51,12 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8080
 
+    # MCP config and path settings
+    DATA_DIR: str = "data"
+    MEMORY_DIR: str = "memory_data"
+    CONFIG_DIR: str = "config"
+    MCP_CONFIG_FILE: str = "mcp_config.json"
+    
     AUTH_SECRET: SecretStr | None = None
 
     OPENAI_API_KEY: SecretStr | None = None
@@ -188,6 +194,48 @@ class Settings(BaseSettings):
     @property
     def BASE_URL(self) -> str:
         return f"http://{self.HOST}:{self.PORT}"
+
+    @computed_field
+    @property
+    def IN_DOCKER(self) -> bool:
+        import os
+        return os.path.exists("/.dockerenv")
+    
+    @computed_field
+    @property
+    def BASE_DIR(self) -> str:
+        import os.path
+        return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    
+    @computed_field
+    @property
+    def DATA_DIR_PATH(self) -> str:
+        import os.path
+        return "/app/data" if self.IN_DOCKER else os.path.join(self.BASE_DIR, self.DATA_DIR)
+    
+    @computed_field
+    @property
+    def MEMORY_DIR_PATH(self) -> str:
+        import os.path
+        return "/app/memory_data" if self.IN_DOCKER else os.path.join(self.BASE_DIR, self.MEMORY_DIR)
+    
+    @computed_field
+    @property
+    def MEMORY_FILE_PATH(self) -> str:
+        import os.path
+        return os.path.join(self.MEMORY_DIR_PATH, "memory.json")
+    
+    @computed_field
+    @property
+    def CONFIG_DIR_PATH(self) -> str:
+        import os.path
+        return "/app/config" if self.IN_DOCKER else os.path.join(self.BASE_DIR, self.CONFIG_DIR)
+    
+    @computed_field
+    @property
+    def MCP_CONFIG_FILE_PATH(self) -> str:
+        import os.path
+        return os.path.join(self.CONFIG_DIR_PATH, self.MCP_CONFIG_FILE)
 
     def is_dev(self) -> bool:
         return self.MODE == "dev"
