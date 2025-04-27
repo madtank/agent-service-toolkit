@@ -72,6 +72,8 @@ The toolkit consists of:
 
 MCP standardizes how agents interact with external tools, enabling more complex and stateful interactions than simple function calls.
 
+![MCP Tool Demo](media/mcp_tool_demo.png)
+
 ### Configured MCP Servers
 
 The MCP servers are now configured via a dedicated JSON configuration file located at `config/mcp_config.json`. This provides a clean separation between configuration and code.
