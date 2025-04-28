@@ -23,7 +23,7 @@ Get up and running quickly using Docker:
 1.  **Clone the repository:**
     ```bash
     git clone https://github.com/madtank/agent-service-toolkit.git
-    cd mcp-agent # Or your repository directory name
+    cd agent-service-toolkit # Or your repository directory name
     ```
 
 2.  **Set up Environment Variables:**
