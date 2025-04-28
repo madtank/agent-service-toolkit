@@ -46,6 +46,7 @@ async def main() -> None:
         page_title=APP_TITLE,
         page_icon=APP_ICON,
         menu_items={},
+        initial_sidebar_state="collapsed",
     )
 
     if "agent_client" not in st.session_state:
