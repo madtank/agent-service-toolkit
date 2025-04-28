@@ -93,11 +93,21 @@ async def get_tools():
             return []
     return _mcp_client.get_tools()
 
-async def initialize_agent():
-    """Initialize the agent with MCP tools."""
+async def initialize_agent(model_name: str | None = None):
+    """Initialize the agent with MCP tools.
+    
+    Args:
+        model_name: Optional model name to use. If None, uses settings.DEFAULT_MODEL.
+    """
     tools = await get_tools()
     
-    model = get_model(settings.DEFAULT_MODEL)
+    # Use the specified model or fall back to default
+    actual_model_name = model_name or settings.DEFAULT_MODEL
+    print(f"MODEL SELECTION: {actual_model_name}")
+    
+    model = get_model(actual_model_name)
+    print(f"Using model: {actual_model_name} (no fallback)")
+    
     base_agent = create_react_agent(model, tools)
     
     # Create the graph

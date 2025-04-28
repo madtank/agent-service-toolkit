@@ -17,6 +17,7 @@ from langgraph.types import Command, Interrupt
 from langsmith import Client as LangsmithClient
 
 from agents import DEFAULT_AGENT, get_agent, get_all_agent_info
+from agents.mcp_agent import initialize_agent
 from core import settings
 from memory import initialize_database
 from schema import (
@@ -35,6 +36,40 @@ from service.utils import (
     remove_tool_calls,
 )
 
+# Cache for storing compiled graphs for different models
+_agent_cache: dict[str, CompiledStateGraph] = {}
+# Global reference to the checkpointer/saver
+_saver = None
+
+async def get_agent_with_model(agent_id: str, model_name: str | None = None) -> CompiledStateGraph:
+    """Get an agent with a specific model.
+    
+    If agent_id is "mcp-agent" and model_name is provided, creates or retrieves a model-specific
+    instance of the agent. Otherwise, falls back to the default agent.
+    """
+    global _saver
+    
+    if agent_id == "mcp-agent" and model_name:
+        cache_key = f"{agent_id}:{model_name}"
+        if cache_key not in _agent_cache:
+            print(f"Creating new agent instance for model: {model_name}")
+            agent = await initialize_agent(model_name)
+            
+            # Make sure new agents get a checkpointer assigned
+            if _saver:
+                agent.checkpointer = _saver
+                print(f"Set checkpointer for model: {model_name}")
+            else:
+                print("WARNING: No checkpointer available to assign to the new agent!")
+                
+            _agent_cache[cache_key] = agent
+            
+        return _agent_cache[cache_key]
+    
+    # Fall back to standard agent retrieval for other agent types or when model isn't specified
+    return await get_agent(agent_id)
+
+# Set up logging and warnings
 warnings.filterwarnings("ignore", category=LangChainBetaWarning)
 logger = logging.getLogger(__name__)
 
@@ -57,6 +92,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     Configurable lifespan that initializes the appropriate database checkpointer based on settings.
     """
+    global _saver
     try:
         async with initialize_database() as saver:
             await saver.setup()
@@ -64,6 +100,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             for a in agents:
                 agent = await get_agent(a.key)  # Await the async get_agent call
                 agent.checkpointer = saver
+            _saver = saver  # Store the saver/checkpointer in the global variable
             yield
     except Exception as e:
         logger.error(f"Error during database initialization: {e}")
@@ -141,7 +178,7 @@ async def invoke(user_input: UserInput, agent_id: str = DEFAULT_AGENT) -> ChatMe
     Use thread_id to persist and continue a multi-turn conversation. run_id kwarg
     is also attached to messages for recording feedback.
     """
-    agent: CompiledStateGraph = await get_agent(agent_id)  # Add await here
+    agent: CompiledStateGraph = await get_agent_with_model(agent_id, user_input.model)
     kwargs, run_id = await _handle_input(user_input, agent)
     try:
         response_events = await agent.ainvoke(**kwargs, stream_mode=["updates", "values"])
@@ -173,7 +210,7 @@ async def message_generator(
 
     This is the workhorse method for the /stream endpoint.
     """
-    agent: CompiledStateGraph = await get_agent(agent_id)  # Add await here
+    agent: CompiledStateGraph = await get_agent_with_model(agent_id, user_input.model)
     kwargs, run_id = await _handle_input(user_input, agent)
     
     # Keep track of final AI message to avoid duplication

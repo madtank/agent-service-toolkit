@@ -25,6 +25,15 @@
         "command": "npx",
         "args": ["-y", "@modelcontextprotocol/server-filesystem", "${DATA_DIR}", "/"],
         "transport": "stdio"
+      },
+      "awslabs.aws-documentation-mcp-server": {
+        "command": "uvx",
+        "args": ["awslabs.aws-documentation-mcp-server@latest"],
+        "env": {
+          "FASTMCP_LOG_LEVEL": "ERROR"
+        },
+        "disabled": false,
+        "autoApprove": []
       }
     }
   }

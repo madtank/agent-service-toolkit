@@ -1,6 +1,5 @@
 import asyncio
 import os
-import urllib.parse
 import uuid
 from collections.abc import AsyncGenerator
 
@@ -13,8 +12,34 @@ from client import AgentClient, AgentClientError
 from schema import ChatHistory, ChatMessage
 from schema.task_data import TaskData, TaskDataStatus
 
-APP_TITLE = "Agent Service Toolkit"
+# Handle import for get_tools with fallback options
+try:
+    from agents.mcp_agent import get_tools
+except ModuleNotFoundError:
+    # Try alternative import paths
+    try:
+        from src.agents.mcp_agent import get_tools
+    except ModuleNotFoundError:
+        print("Could not import get_tools from agents.mcp_agent")
+        # Define a placeholder function to avoid breaking the app
+        async def get_tools():
+            return []
+
+
+APP_TITLE = "MCP Agent"
 APP_ICON = "🧰"
+
+# Optional: map model names to custom avatar images.
+# Replace the URLs with your own images or local file paths as desired.
+MODEL_AVATARS = {
+    "gpt-4o": "https://raw.githubusercontent.com/madtank/assets/main/avatars/gpt-4o.png",
+    "claude-3-haiku": "https://raw.githubusercontent.com/madtank/assets/main/avatars/claude-haiku.png",
+    # Add more entries here …
+}
+
+def model_avatar(model_name: str) -> str | None:
+    """Return an avatar image for a given model name, if one is configured."""
+    return MODEL_AVATARS.get(model_name)
 
 async def main() -> None:
     st.set_page_config(
@@ -22,11 +47,6 @@ async def main() -> None:
         page_icon=APP_ICON,
         menu_items={},
     )
-
-    if st.get_option("client.toolbarMode") != "minimal":
-        st.set_option("client.toolbarMode", "minimal")
-        await asyncio.sleep(0.1)
-        st.rerun()
 
     if "agent_client" not in st.session_state:
         load_dotenv()
@@ -76,37 +96,26 @@ async def main() -> None:
             st.session_state.start_new_chat = True
             st.rerun()
 
-        # Settings popover remains
-        with st.popover(":material/settings: Settings", use_container_width=True):
-            model_idx = agent_client.info.models.index(agent_client.info.default_model)
-            model = st.selectbox("LLM to use", options=agent_client.info.models, index=model_idx)
-            agent_list = [a.key for a in agent_client.info.agents]
-            agent_idx = agent_list.index(agent_client.info.default_agent)
-            agent_client.agent = st.selectbox(
-                "Agent to use",
-                options=agent_list,
-                index=agent_idx,
-            )
-            use_streaming = st.toggle("Stream results", value=True)
+        # Direct model and agent selectors in the sidebar
+        st.subheader("Settings")
+        model_idx = agent_client.info.models.index(agent_client.info.default_model)
+        model = st.selectbox("LLM to use", options=agent_client.info.models, index=model_idx)
+        
+        agent_list = [a.key for a in agent_client.info.agents]
+        agent_idx = agent_list.index(agent_client.info.default_agent)
+        agent_client.agent = st.selectbox(
+            "Agent to use",
+            options=agent_list,
+            index=agent_idx,
+        )
+        use_streaming = st.toggle("Stream results", value=True)
 
-        # Share/resume chat dialog
-        @st.dialog("Share/resume chat")
-        def share_chat_dialog() -> None:
-            session = st.runtime.get_instance()._session_mgr.list_active_sessions()[0]
-            st_base_url = urllib.parse.urlunparse(
-                [session.client.request.protocol, session.client.request.host, "", "", ""]
-            )
-            if not st_base_url.startswith("https") and "localhost" not in st_base_url:
-                st_base_url = st_base_url.replace("http", "https")
-            chat_url = f"{st_base_url}?thread_id={st.session_state.thread_id}"
-            st.markdown(f"**Chat URL:**\n```text\n{chat_url}\n```")
-            st.info("Copy the above URL to share or revisit this chat")
-
-        if st.button(":material/upload: Share/resume chat", use_container_width=True):
-            share_chat_dialog()
+        # MCP Tools section removed for now - to be implemented in future enhancement
+        # st.subheader("Available MCP Tools")
+        # st.info("MCP Tools display coming soon")
 
         # View source code link
-        st.markdown("[View the source code](https://github.com/madtank/agent-service-toolkit/tree/main)")
+        st.markdown("[View MCP Agent source code](https://github.com/YOUR_USERNAME/mcp-agent)")
     
     # --- Quick Actions on Top of the Main Page ---
     st.subheader("Quick Actions")
@@ -215,6 +224,9 @@ async def main() -> None:
         messages.append(ChatMessage(type="human", content=user_input))
         st.chat_message("human").write(user_input)
         try:
+            # Store the current model in session state for display with AI messages
+            st.session_state.current_model = model
+            
             if use_streaming:
                 stream = agent_client.astream(
                     message=user_input,
@@ -259,7 +271,15 @@ async def draw_messages(
             if not streaming_placeholder:
                 if last_message_type != "ai":
                     last_message_type = "ai"
-                    st.session_state.last_message = st.chat_message("ai")
+                    current_model = st.session_state.get("current_model", "AI")
+                    avatar_img = model_avatar(current_model)
+                    st.session_state.last_message = st.chat_message(
+                        "ai",
+                        avatar=avatar_img
+                    )
+                    # Show the model name visibly under the avatar
+                    with st.session_state.last_message:
+                        st.caption(current_model)
                 with st.session_state.last_message:
                     streaming_placeholder = st.empty()
             streaming_content += msg
@@ -293,11 +313,19 @@ async def draw_messages(
                         st.session_state.messages.append(msg)
                         if msg.content:
                             final_message_appended = True
-                        
+
                 if last_message_type != "ai":
                     last_message_type = "ai"
-                    st.session_state.last_message = st.chat_message("ai")
-                    
+                    model_name = getattr(msg, "model", None) or st.session_state.get("current_model", "AI")
+                    avatar_img = model_avatar(model_name)
+                    st.session_state.last_message = st.chat_message(
+                        "ai",
+                        avatar=avatar_img
+                    )
+                    # Show the model name visibly under the avatar
+                    with st.session_state.last_message:
+                        st.caption(model_name)
+
                 with st.session_state.last_message:
                     if msg.content:
                         if streaming_placeholder:
@@ -309,13 +337,13 @@ async def draw_messages(
                             streaming_placeholder = None
                         else:
                             st.write(msg.content)
-                            
+
                     if msg.tool_calls:
                         # Save tool calls we've seen to track them
                         for tool_call in msg.tool_calls:
                             if tool_call not in tool_calls_seen:
                                 tool_calls_seen.append(tool_call)
-                                
+
                         call_results = {}
                         for tool_call in msg.tool_calls:
                             status = st.status(
@@ -325,7 +353,7 @@ async def draw_messages(
                             call_results[tool_call["id"]] = status
                             status.write("Input:")
                             status.write(tool_call["args"])
-                            
+
                         for _ in range(len(call_results)):
                             try:
                                 tool_result: ChatMessage = await anext(messages_agen)
@@ -333,11 +361,11 @@ async def draw_messages(
                                     st.error(f"Unexpected ChatMessage type: {tool_result.type}")
                                     st.write(tool_result)
                                     st.stop()
-                                    
+
                                 # Track tool responses for history
                                 if tool_result not in tool_responses_seen:
                                     tool_responses_seen.append(tool_result)
-                                    
+
                                 # Add tool response to history if it's new
                                 if is_new:
                                     # Only append if it's not a duplicate
@@ -348,16 +376,16 @@ async def draw_messages(
                                             existing.content == tool_result.content):
                                             duplicate = True
                                             break
-                                    
+
                                     if not duplicate:
                                         st.session_state.messages.append(tool_result)
-                                        
+
                                 status = call_results.get(tool_result.tool_call_id)
                                 # If we can't find the matching tool call, use the first available status
                                 if not status and call_results:
                                     status = list(call_results.values())[0]
                                     st.warning(f"Tool result with id {tool_result.tool_call_id} couldn't be matched to a tool call")
-                                    
+
                                 if status:
                                     status.write("Output:")
                                     status.write(tool_result.content)
