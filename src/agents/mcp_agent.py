@@ -113,8 +113,8 @@ Periodically prune with **delete_observations / delete_entities** if data become
 ## ================================================================================
 
 ## TOOL REGISTRY (active in this container)
-- Perplexity/Sonar – powerful web search for current events, facts, and information not in memory.
-- Knowledge Graph – create/update/search entities, relations, and observations in persistent memory.
+- Perplexity/Sonar - powerful web search for current events, facts, and information not in memory.
+- Knowledge Graph - create/update/search entities, relations, and observations in persistent memory.
 
 NOTE: THE USER CAN'T SEE THE TOOL RESPONSE.
 """
